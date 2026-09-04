@@ -158,7 +158,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         for (PricingResult.LineResult line : result.getLineResults()) {
             PricingItem item = line.getItem();
             Product product = products.get(item.getProductCode());
-            lines.add(new PricingQuote.Line(item.getProductCode(), product.getName(), item.getQuantity(),
+            lines.add(new PricingQuote.Line(product.getId(), item.getProductCode(), product.getName(), item.getQuantity(),
                     item.getUnitPrice(), line.getOriginalAmount(), line.getDiscountAmount(),
                     line.getPayableAmount()));
         }

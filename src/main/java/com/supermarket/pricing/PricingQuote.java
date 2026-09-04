@@ -25,6 +25,7 @@ public final class PricingQuote {
     public BigDecimal getPayableAmount() { return payableAmount; }
 
     public static final class Line {
+        private final Long productId;
         private final String productCode;
         private final String productName;
         private final int quantity;
@@ -35,6 +36,12 @@ public final class PricingQuote {
 
         public Line(String productCode, String productName, int quantity, BigDecimal unitPrice,
                     BigDecimal originalAmount, BigDecimal discountAmount, BigDecimal payableAmount) {
+            this(null, productCode, productName, quantity, unitPrice, originalAmount, discountAmount, payableAmount);
+        }
+
+        public Line(Long productId, String productCode, String productName, int quantity, BigDecimal unitPrice,
+                    BigDecimal originalAmount, BigDecimal discountAmount, BigDecimal payableAmount) {
+            this.productId = productId;
             this.productCode = productCode;
             this.productName = productName;
             this.quantity = quantity;
@@ -44,6 +51,7 @@ public final class PricingQuote {
             this.payableAmount = payableAmount;
         }
 
+        public Long getProductId() { return productId; }
         public String getProductCode() { return productCode; }
         public String getProductName() { return productName; }
         public int getQuantity() { return quantity; }
