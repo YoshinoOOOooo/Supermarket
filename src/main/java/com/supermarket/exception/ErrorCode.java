@@ -1,0 +1,11 @@
+package com.supermarket.exception;
+
+public enum ErrorCode {
+    INVALID_REQUEST,
+    PRODUCT_NOT_FOUND,
+    PRODUCT_DISABLED,
+    PROMOTION_CONFLICT,
+    ORDER_NOT_FOUND,
+    INVALID_ORDER_STATE,
+    INTERNAL_ERROR
+}

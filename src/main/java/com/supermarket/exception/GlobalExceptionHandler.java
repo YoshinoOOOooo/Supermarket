@@ -1,0 +1,52 @@
+package com.supermarket.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.time.LocalDateTime;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException exception) {
+        String message = exception.getBindingResult().getFieldErrors().isEmpty()
+                ? "Invalid request"
+                : exception.getBindingResult().getFieldErrors().get(0).getDefaultMessage();
+        return response(ErrorCode.INVALID_REQUEST, message, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiError> handleBusiness(BusinessException exception) {
+        return response(exception.getErrorCode(), exception.getMessage(), statusFor(exception.getErrorCode()));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleUnexpected(Exception exception) {
+        return response(ErrorCode.INTERNAL_ERROR, "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private HttpStatus statusFor(ErrorCode code) {
+        switch (code) {
+            case PRODUCT_NOT_FOUND:
+            case ORDER_NOT_FOUND:
+                return HttpStatus.NOT_FOUND;
+            case PRODUCT_DISABLED:
+            case PROMOTION_CONFLICT:
+            case INVALID_ORDER_STATE:
+                return HttpStatus.CONFLICT;
+            case INTERNAL_ERROR:
+                return HttpStatus.INTERNAL_SERVER_ERROR;
+            case INVALID_REQUEST:
+            default:
+                return HttpStatus.BAD_REQUEST;
+        }
+    }
+
+    private ResponseEntity<ApiError> response(ErrorCode code, String message, HttpStatus status) {
+        return ResponseEntity.status(status)
+                .body(new ApiError(code.name(), message, LocalDateTime.now()));
+    }
+}
