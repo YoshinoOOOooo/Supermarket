@@ -119,13 +119,15 @@ class OrderServiceImplTest {
         assertTrue(guard.getParamNameValuePairs().containsValue(9L));
         assertTrue(guard.getParamNameValuePairs().containsValue(OrderStatus.UNPAID));
 
-        reset(orders, items);
+        reset(orders);
+        reset(items);
         when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.UNPAID));
         when(orders.update(any(CustomerOrder.class), anyOrderWrapper())).thenReturn(1);
         when(items.selectList(any())).thenReturn(Collections.singletonList(snapshot(9L)));
         assertEquals(OrderStatus.CANCELLED, service.cancel(number).getStatus());
 
-        reset(orders, items);
+        reset(orders);
+        reset(items);
         when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.COMPLETED));
         when(items.selectList(any())).thenReturn(Collections.singletonList(snapshot(9L)));
         assertEquals(OrderStatus.COMPLETED, service.complete(number).getStatus());
@@ -133,7 +135,8 @@ class OrderServiceImplTest {
         BusinessException completedToCancelled = assertThrows(BusinessException.class, () -> service.cancel(number));
         assertEquals(ErrorCode.INVALID_ORDER_STATE, completedToCancelled.getErrorCode());
 
-        reset(orders, items);
+        reset(orders);
+        reset(items);
         when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.CANCELLED));
         when(items.selectList(any())).thenReturn(Collections.singletonList(snapshot(9L)));
         assertEquals(OrderStatus.CANCELLED, service.cancel(number).getStatus());
