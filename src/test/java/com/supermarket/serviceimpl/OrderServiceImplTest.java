@@ -19,11 +19,8 @@ import com.supermarket.vo.OrderView;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InOrder;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -31,20 +28,17 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
     private final PricingQuoteService pricing = mock(PricingQuoteService.class);
     private final CustomerOrderMapper orders = mock(CustomerOrderMapper.class);
     private final OrderItemMapper items = mock(OrderItemMapper.class);
     private final OrderServiceImpl service = new OrderServiceImpl(pricing, orders, items);
-    @Captor
-    private ArgumentCaptor<LambdaUpdateWrapper<CustomerOrder>> updateGuardCaptor;
-
     @BeforeAll
     static void initializeLambdaMetadata() {
         MybatisConfiguration configuration = new MybatisConfiguration();
@@ -107,13 +101,19 @@ class OrderServiceImplTest {
     void completeAndCancelGuardTerminalStateAndTreatSameTargetAsIdempotent() {
         UUID number = UUID.randomUUID();
         CustomerOrder unpaid = order(9L, number, OrderStatus.UNPAID);
+        AtomicReference<LambdaUpdateWrapper<?>> capturedGuard = new AtomicReference<>();
         when(orders.selectOne(any())).thenReturn(unpaid);
-        when(orders.update(any(CustomerOrder.class), anyOrderWrapper())).thenReturn(1);
+        doAnswer(invocation -> {
+            Object argument = invocation.getArgument(1);
+            assertTrue(argument instanceof LambdaUpdateWrapper<?>);
+            capturedGuard.set((LambdaUpdateWrapper<?>) argument);
+            return 1;
+        }).when(orders).update(any(CustomerOrder.class), anyOrderWrapper());
         when(items.selectList(any())).thenReturn(Collections.singletonList(snapshot(9L)));
 
         assertEquals(OrderStatus.COMPLETED, service.complete(number).getStatus());
-        verify(orders).update(any(CustomerOrder.class), updateGuardCaptor.capture());
-        LambdaUpdateWrapper<CustomerOrder> guard = updateGuardCaptor.getValue();
+        LambdaUpdateWrapper<?> guard = capturedGuard.get();
+        assertNotNull(guard);
         assertTrue(guard.getSqlSegment().contains("id"));
         assertTrue(guard.getSqlSegment().contains("status"));
         assertTrue(guard.getParamNameValuePairs().containsValue(9L));
@@ -184,7 +184,7 @@ class OrderServiceImplTest {
     }
 
     private Wrapper<CustomerOrder> anyOrderWrapper() {
-        return any();
+        return org.mockito.ArgumentMatchers.<Wrapper<CustomerOrder>>any();
     }
 
     private CheckoutRequest request(CheckoutItemRequest... items) { return new CheckoutRequest(Arrays.asList(items)); }

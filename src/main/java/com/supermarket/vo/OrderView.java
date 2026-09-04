@@ -1,5 +1,7 @@
 package com.supermarket.vo;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.supermarket.config.MoneySerializer;
 import com.supermarket.enums.OrderStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -10,8 +12,11 @@ import java.util.List;
 public final class OrderView {
     private final String orderNo;
     private final OrderStatus status;
+    @JsonSerialize(using = MoneySerializer.class)
     private final BigDecimal originalAmount;
+    @JsonSerialize(using = MoneySerializer.class)
     private final BigDecimal discountAmount;
+    @JsonSerialize(using = MoneySerializer.class)
     private final BigDecimal payableAmount;
     private final List<OrderItemView> items;
     private final LocalDateTime createdAt;

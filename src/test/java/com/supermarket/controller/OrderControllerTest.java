@@ -44,6 +44,12 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.orderNo").value(number.toString()))
                 .andExpect(jsonPath("$.status").value("UNPAID"))
                 .andExpect(jsonPath("$.items[0].productName").value("Apple snapshot"))
+                .andExpect(jsonPath("$.items[0].unitPrice").value("10.00"))
+                .andExpect(jsonPath("$.items[0].originalAmount").value("20.00"))
+                .andExpect(jsonPath("$.items[0].discountAmount").value("3.00"))
+                .andExpect(jsonPath("$.items[0].payableAmount").value("17.00"))
+                .andExpect(jsonPath("$.originalAmount").value("20.00"))
+                .andExpect(jsonPath("$.discountAmount").value("3.00"))
                 .andExpect(jsonPath("$.payableAmount").value("17.00"));
         mvc.perform(get("/api/orders/{orderNo}", number))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UNPAID"));
