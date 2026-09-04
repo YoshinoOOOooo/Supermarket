@@ -2,6 +2,7 @@ package com.supermarket.serviceimpl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.supermarket.dto.CheckoutItemRequest;
 import com.supermarket.dto.CheckoutRequest;
@@ -18,8 +19,11 @@ import com.supermarket.vo.OrderView;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InOrder;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -32,11 +36,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
     private final PricingQuoteService pricing = mock(PricingQuoteService.class);
     private final CustomerOrderMapper orders = mock(CustomerOrderMapper.class);
     private final OrderItemMapper items = mock(OrderItemMapper.class);
     private final OrderServiceImpl service = new OrderServiceImpl(pricing, orders, items);
+    @Captor
+    private ArgumentCaptor<LambdaUpdateWrapper<CustomerOrder>> updateGuardCaptor;
 
     @BeforeAll
     static void initializeLambdaMetadata() {
@@ -101,18 +108,20 @@ class OrderServiceImplTest {
         UUID number = UUID.randomUUID();
         CustomerOrder unpaid = order(9L, number, OrderStatus.UNPAID);
         when(orders.selectOne(any())).thenReturn(unpaid);
-        when(orders.update(any(CustomerOrder.class), any(Wrapper.class))).thenReturn(1);
+        when(orders.update(any(CustomerOrder.class), anyOrderWrapper())).thenReturn(1);
         when(items.selectList(any())).thenReturn(Collections.singletonList(snapshot(9L)));
 
         assertEquals(OrderStatus.COMPLETED, service.complete(number).getStatus());
-        ArgumentCaptor<Wrapper<CustomerOrder>> guard = wrapperCaptor();
-        verify(orders).update(any(CustomerOrder.class), guard.capture());
-        assertTrue(guard.getValue().getSqlSegment().contains("status"));
-        assertTrue(guard.getValue().getParamNameValuePairs().containsValue(OrderStatus.UNPAID));
+        verify(orders).update(any(CustomerOrder.class), updateGuardCaptor.capture());
+        LambdaUpdateWrapper<CustomerOrder> guard = updateGuardCaptor.getValue();
+        assertTrue(guard.getSqlSegment().contains("id"));
+        assertTrue(guard.getSqlSegment().contains("status"));
+        assertTrue(guard.getParamNameValuePairs().containsValue(9L));
+        assertTrue(guard.getParamNameValuePairs().containsValue(OrderStatus.UNPAID));
 
         reset(orders, items);
         when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.UNPAID));
-        when(orders.update(any(CustomerOrder.class), any(Wrapper.class))).thenReturn(1);
+        when(orders.update(any(CustomerOrder.class), anyOrderWrapper())).thenReturn(1);
         when(items.selectList(any())).thenReturn(Collections.singletonList(snapshot(9L)));
         assertEquals(OrderStatus.CANCELLED, service.cancel(number).getStatus());
 
@@ -120,7 +129,7 @@ class OrderServiceImplTest {
         when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.COMPLETED));
         when(items.selectList(any())).thenReturn(Collections.singletonList(snapshot(9L)));
         assertEquals(OrderStatus.COMPLETED, service.complete(number).getStatus());
-        verify(orders, never()).update(any(CustomerOrder.class), any(Wrapper.class));
+        verify(orders, never()).update(any(CustomerOrder.class), anyOrderWrapper());
         BusinessException completedToCancelled = assertThrows(BusinessException.class, () -> service.cancel(number));
         assertEquals(ErrorCode.INVALID_ORDER_STATE, completedToCancelled.getErrorCode());
 
@@ -136,7 +145,7 @@ class OrderServiceImplTest {
     void transitionReportsConcurrentConflictWhenOptimisticUpdateLoses() {
         UUID number = UUID.randomUUID();
         when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.UNPAID));
-        when(orders.update(any(CustomerOrder.class), any(Wrapper.class))).thenReturn(0);
+        when(orders.update(any(CustomerOrder.class), anyOrderWrapper())).thenReturn(0);
 
         BusinessException error = assertThrows(BusinessException.class, () -> service.complete(number));
 
@@ -174,9 +183,8 @@ class OrderServiceImplTest {
         return captor.getValue();
     }
 
-    @SuppressWarnings("unchecked")
-    private ArgumentCaptor<Wrapper<CustomerOrder>> wrapperCaptor() {
-        return ArgumentCaptor.forClass(Wrapper.class);
+    private Wrapper<CustomerOrder> anyOrderWrapper() {
+        return any();
     }
 
     private CheckoutRequest request(CheckoutItemRequest... items) { return new CheckoutRequest(Arrays.asList(items)); }
