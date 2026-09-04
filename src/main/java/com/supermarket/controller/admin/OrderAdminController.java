@@ -1,8 +1,10 @@
 package com.supermarket.controller.admin;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.supermarket.config.OpenApiConfig;
 import com.supermarket.service.OrderService;
 import com.supermarket.vo.OrderView;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +16,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/orders")
+@SecurityRequirement(name = OpenApiConfig.ADMIN_BASIC_SCHEME)
 public class OrderAdminController {
     private final OrderService orderService;
 

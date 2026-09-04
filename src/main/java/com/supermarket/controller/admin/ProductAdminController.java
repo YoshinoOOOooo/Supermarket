@@ -2,13 +2,16 @@ package com.supermarket.controller.admin;
 
 import com.supermarket.dto.ProductCreateRequest;
 import com.supermarket.dto.ProductUpdateRequest;
+import com.supermarket.config.OpenApiConfig;
 import com.supermarket.service.ProductService;
 import com.supermarket.vo.ProductView;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 import java.util.List;
 
 @RestController @RequestMapping("/api/admin/products")
+@SecurityRequirement(name = OpenApiConfig.ADMIN_BASIC_SCHEME)
 public class ProductAdminController {
     private final ProductService service;
     public ProductAdminController(ProductService service) { this.service = service; }

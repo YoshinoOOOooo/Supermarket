@@ -2,13 +2,16 @@ package com.supermarket.controller.admin;
 
 import com.supermarket.dto.PromotionCreateRequest;
 import com.supermarket.dto.PromotionUpdateRequest;
+import com.supermarket.config.OpenApiConfig;
 import com.supermarket.service.PromotionService;
 import com.supermarket.vo.PromotionView;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 import java.util.List;
 
 @RestController @RequestMapping("/api/admin/promotions")
+@SecurityRequirement(name = OpenApiConfig.ADMIN_BASIC_SCHEME)
 public class PromotionAdminController {
     private final PromotionService service;
     public PromotionAdminController(PromotionService service) { this.service = service; }

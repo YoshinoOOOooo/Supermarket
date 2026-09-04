@@ -66,6 +66,12 @@ class SecurityConfigTest {
     }
 
     @Test
+    void swaggerUiHtmlEntryPointIsPublic() throws Exception {
+        mockMvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void adminRouteRejectsMissingCredentials() throws Exception {
         mockMvc.perform(get("/api/admin/products"))
                 .andExpect(status().isUnauthorized());
@@ -111,6 +117,11 @@ class SecurityConfigTest {
         @GetMapping("/api/orders/{orderNo}")
         @ResponseStatus(HttpStatus.NO_CONTENT)
         void findOrder() {
+        }
+
+        @GetMapping("/swagger-ui.html")
+        @ResponseStatus(HttpStatus.NO_CONTENT)
+        void swaggerUiEntryPoint() {
         }
 
         @GetMapping("/api/admin/products")
