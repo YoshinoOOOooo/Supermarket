@@ -1,5 +1,8 @@
 package com.supermarket.vo;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.supermarket.config.MoneySerializer;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,8 +10,11 @@ import java.util.List;
 
 public final class CheckoutResultView {
     private final List<CheckoutItemView> items;
+    @JsonSerialize(using = MoneySerializer.class)
     private final BigDecimal originalAmount;
+    @JsonSerialize(using = MoneySerializer.class)
     private final BigDecimal discountAmount;
+    @JsonSerialize(using = MoneySerializer.class)
     private final BigDecimal payableAmount;
 
     public CheckoutResultView(List<CheckoutItemView> items, BigDecimal originalAmount,
