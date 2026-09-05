@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.supermarket.dto.CheckoutItemRequest;
 import com.supermarket.dto.CheckoutRequest;
 import com.supermarket.entity.CustomerOrder;
@@ -60,6 +61,24 @@ class OrderServiceImplTest {
         BusinessException error = assertThrows(BusinessException.class, () -> service.list(1, 101));
         assertEquals(ErrorCode.INVALID_REQUEST, error.getErrorCode());
         verify(orders, never()).selectPage(any(), any());
+    }
+
+    @Test
+    void listBatchLoadsAndGroupsItemsForTheWholePage() {
+        CustomerOrder first = order(10L, UUID.randomUUID(), OrderStatus.UNPAID);
+        CustomerOrder second = order(20L, UUID.randomUUID(), OrderStatus.COMPLETED);
+        Page<CustomerOrder> page = new Page<CustomerOrder>(1, 10, 2);
+        page.setRecords(Arrays.asList(first, second));
+        when(orders.selectPage(any(), any())).thenReturn(page);
+        OrderItem secondItem = snapshot(20L); secondItem.setProductCode("MANGO");
+        OrderItem firstItem = snapshot(10L); firstItem.setProductCode("APPLE");
+        when(items.selectList(any())).thenReturn(Arrays.asList(firstItem, secondItem));
+
+        com.baomidou.mybatisplus.core.metadata.IPage<OrderView> result = service.list(1, 10);
+
+        assertEquals("APPLE", result.getRecords().get(0).getItems().get(0).getProductCode());
+        assertEquals("MANGO", result.getRecords().get(1).getItems().get(0).getProductCode());
+        verify(items, times(1)).selectList(any());
     }
 
     @Test

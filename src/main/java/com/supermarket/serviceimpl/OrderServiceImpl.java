@@ -24,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.UUID;
 import javax.annotation.Resource;
 
@@ -128,7 +131,11 @@ public class OrderServiceImpl implements OrderService {
             throw invalid("Page must be positive and size must be between 1 and 100");
         IPage<CustomerOrder> result = orderMapper.selectPage(new Page<CustomerOrder>(page, size),
                 new LambdaQueryWrapper<CustomerOrder>().orderByDesc(CustomerOrder::getCreatedAt));
-        return result.convert(order -> view(order, snapshots(order.getId())));
+        List<Long> orderIds = new ArrayList<Long>();
+        for (CustomerOrder order : result.getRecords()) orderIds.add(order.getId());
+        Map<Long, List<OrderItem>> grouped = snapshotsByOrderIds(orderIds);
+        return result.convert(order -> view(order,
+                grouped.containsKey(order.getId()) ? grouped.get(order.getId()) : Collections.<OrderItem>emptyList()));
     }
 
     /**
@@ -171,6 +178,23 @@ public class OrderServiceImpl implements OrderService {
     private List<OrderItem> snapshots(Long orderId) {
         return itemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
                 .eq(OrderItem::getOrderId, orderId).orderByAsc(OrderItem::getId));
+    }
+
+    /** 一次查询整页订单明细并按订单主键分组，避免逐订单查询。 */
+    private Map<Long, List<OrderItem>> snapshotsByOrderIds(List<Long> orderIds) {
+        Map<Long, List<OrderItem>> grouped = new LinkedHashMap<Long, List<OrderItem>>();
+        if (orderIds.isEmpty()) return grouped;
+        List<OrderItem> all = itemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
+                .in(OrderItem::getOrderId, orderIds).orderByAsc(OrderItem::getId));
+        for (OrderItem item : all) {
+            List<OrderItem> orderItems = grouped.get(item.getOrderId());
+            if (orderItems == null) {
+                orderItems = new ArrayList<OrderItem>();
+                grouped.put(item.getOrderId(), orderItems);
+            }
+            orderItems.add(item);
+        }
+        return grouped;
     }
 
     /** 根据报价行构造可持久化的订单明细快照。 */
