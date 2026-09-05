@@ -147,6 +147,35 @@ class PromotionServiceImplTest {
         assertEquals(ErrorCode.PROMOTION_CONFLICT, assertThrows(BusinessException.class,
                 () -> service.create(discount())).getErrorCode());
     }
+    @Test void missingCodeForChineseNameGeneratesNonEmptyUuidCode() {
+        PromotionCreateRequest request = discount(); request.setName("草莓八折"); request.setCode("  ");
+        when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
+        service.create(request);
+        ArgumentCaptor<Promotion> saved = ArgumentCaptor.forClass(Promotion.class); verify(mapper).insert(saved.capture());
+        assertTrue(saved.getValue().getCode().matches("PROMO_[A-F0-9]{32}"));
+        assertTrue(saved.getValue().getCode().length() <= 64);
+    }
+    @Test void explicitSymbolOnlyCodeIsRejectedBeforePersistence() {
+        PromotionCreateRequest request = discount(); request.setCode(" -- !!! ");
+        assertEquals(ErrorCode.INVALID_REQUEST, assertThrows(BusinessException.class,
+                () -> service.create(request)).getErrorCode());
+        verify(mapper, never()).insert(any());
+    }
+    @Test void explicitCodeIsNormalizedAndDatabaseCollisionIsConflict() {
+        PromotionCreateRequest request = discount(); request.setCode(" summer-sale ");
+        when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
+        when(mapper.insert(any())).thenThrow(new DataIntegrityViolationException("duplicate"));
+        assertEquals(ErrorCode.PROMOTION_CONFLICT, assertThrows(BusinessException.class,
+                () -> service.create(request)).getErrorCode());
+        ArgumentCaptor<Promotion> saved = ArgumentCaptor.forClass(Promotion.class); verify(mapper).insert(saved.capture());
+        assertEquals("SUMMER_SALE", saved.getValue().getCode());
+    }
+    @Test void explicitCodeLongerThanSchemaLimitIsRejected() {
+        PromotionCreateRequest request = discount(); request.setCode(String.join("", Collections.nCopies(65, "A")));
+        assertEquals(ErrorCode.INVALID_REQUEST, assertThrows(BusinessException.class,
+                () -> service.create(request)).getErrorCode());
+        verify(mapper, never()).insert(any());
+    }
     private PromotionCreateRequest discount() { PromotionCreateRequest r = base(PromotionType.PRODUCT_DISCOUNT); r.setProductId(1L); r.setDiscountRate(new BigDecimal("0.80")); return r; }
     private PromotionCreateRequest threshold() { PromotionCreateRequest r = base(PromotionType.ORDER_THRESHOLD_REDUCTION); r.setThresholdAmount(BigDecimal.TEN); r.setReductionAmount(BigDecimal.ONE); return r; }
     private PromotionCreateRequest base(PromotionType type) { PromotionCreateRequest r = new PromotionCreateRequest(); r.setName("Rule"); r.setType(type); r.setPriority(1); r.setEnabled(true); return r; }

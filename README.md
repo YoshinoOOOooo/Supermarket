@@ -200,5 +200,6 @@ mvn -DexcludedGroups= -Dgroups=mysql -Dtest=PricingScenariosAcceptanceTest test
 - 应用不提供管理员密码默认值；未设置 `ADMIN_PASSWORD` 时会拒绝启动，避免以已知凭据暴露管理接口。
 - `data.sql` 是可重复执行的演示基准重置脚本：会恢复三种水果的名称、价格和启用状态，并补齐默认促销；请勿对需要保留人工改价的生产数据重复执行。
 - 全新本地库可重新执行 `schema.sql` 和 `data.sql`。旧版库请先备份，再仅执行一次 `db/migration-add-promotion-code.sql`；迁移脚本按主键生成稳定占位 code，种子规则只按 code 识别，禁止依赖可修改的 name。
+- 新建促销时 `code` 可省略；系统会生成 `PROMO_` 加 UUID 的稳定标识。显式填写时会转为大写并把分隔符规范化为下划线，长度不能超过 64，且必须至少包含字母或数字。
 - 正式下单会在事务中重新计价，客户端不能提交单价或总价。
 - 当前项目不包含库存、支付网关、退款、配送、顾客账号或多管理员管理。

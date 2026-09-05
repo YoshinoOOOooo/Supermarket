@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.CannotAcquireLockException;
 
@@ -33,7 +34,7 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override @Transactional public PromotionView create(PromotionCreateRequest r) {
-        Promotion p = new Promotion(); p.setCode(normalizeCode(r.getCode(), r.getName())); copy(p, r.getName(), r.getType(), r.getProductId(), r.getDiscountRate(), r.getThresholdAmount(), r.getReductionAmount(), r.getPriority(), r.getStartTime(), r.getEndTime());
+        Promotion p = new Promotion(); p.setCode(normalizeCode(r.getCode())); copy(p, r.getName(), r.getType(), r.getProductId(), r.getDiscountRate(), r.getThresholdAmount(), r.getReductionAmount(), r.getPriority(), r.getStartTime(), r.getEndTime());
         try { p.setEnabled(r.getEnabled() == null || r.getEnabled()); validate(p); if (p.getEnabled()) { lockConflictDomain(p); validateNoConflict(p); } mapper.insert(p); return view(p); }
         catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }
@@ -79,7 +80,17 @@ public class PromotionServiceImpl implements PromotionService {
     }
     private Promotion required(Long id) { Promotion p = mapper.selectById(id); if (p == null) invalid("Promotion not found"); return p; }
     private void invalid(String message) { throw new BusinessException(ErrorCode.INVALID_REQUEST, message); }
-    private String normalizeCode(String code, String name) { String source = code == null || code.trim().isEmpty() ? name : code; return source.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_").replaceAll("^_+|_+$", ""); }
+    private String normalizeCode(String code) {
+        if (code == null || code.trim().isEmpty()) {
+            return "PROMO_" + UUID.randomUUID().toString().replace("-", "").toUpperCase(Locale.ROOT);
+        }
+        String normalized = code.trim().toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "_").replaceAll("^_+|_+$", "");
+        if (normalized.isEmpty() || normalized.length() > 64 || !normalized.matches("[A-Z0-9_]+")) {
+            invalid("Promotion code must contain letters or digits and be at most 64 characters");
+        }
+        return normalized;
+    }
     private BusinessException conflict() { return new BusinessException(ErrorCode.PROMOTION_CONFLICT, "Promotion configuration conflicts with another rule"); }
     private PromotionView view(Promotion p) { return new PromotionView(p.getId(), p.getCode(), p.getName(), p.getType(), p.getProductId(), p.getDiscountRate(), p.getThresholdAmount(), p.getReductionAmount(), p.getPriority(), p.getEnabled(), p.getStartTime(), p.getEndTime(), p.getCreatedAt(), p.getUpdatedAt()); }
 }
