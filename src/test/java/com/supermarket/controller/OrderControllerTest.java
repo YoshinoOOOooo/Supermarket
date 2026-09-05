@@ -82,6 +82,23 @@ class OrderControllerTest {
         verify(service, never()).create(any());
     }
 
+    @Test
+    void publicCreateRejectsExcessiveQuantityAndItemCount() throws Exception {
+        mvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"productCode\":\"APPLE\",\"quantity\":100001}]}"))
+                .andExpect(status().isBadRequest());
+
+        StringBuilder json = new StringBuilder("{\"items\":[");
+        for (int i = 0; i < 101; i++) {
+            if (i > 0) json.append(',');
+            json.append("{\"productCode\":\"APPLE\",\"quantity\":1}");
+        }
+        json.append("]}");
+        mvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content(json.toString()))
+                .andExpect(status().isBadRequest());
+        verify(service, never()).create(any());
+    }
+
     @Test void publicCanModifyAnUnpaidOrder() throws Exception {
         UUID number = UUID.randomUUID();
         when(service.update(eq(number), any())).thenReturn(view(number, OrderStatus.UNPAID));

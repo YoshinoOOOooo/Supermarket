@@ -124,7 +124,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public IPage<OrderView> list(long page, long size) {
-        if (page < 1 || size < 1) throw invalid("Page and size must be positive");
+        if (page < 1 || size < 1 || size > 100)
+            throw invalid("Page must be positive and size must be between 1 and 100");
         IPage<CustomerOrder> result = orderMapper.selectPage(new Page<CustomerOrder>(page, size),
                 new LambdaQueryWrapper<CustomerOrder>().orderByDesc(CustomerOrder::getCreatedAt));
         return result.convert(order -> view(order, snapshots(order.getId())));

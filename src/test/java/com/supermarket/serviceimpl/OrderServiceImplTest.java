@@ -56,6 +56,13 @@ class OrderServiceImplTest {
     }
 
     @Test
+    void listRejectsPageSizeAboveOneHundred() {
+        BusinessException error = assertThrows(BusinessException.class, () -> service.list(1, 101));
+        assertEquals(ErrorCode.INVALID_REQUEST, error.getErrorCode());
+        verify(orders, never()).selectPage(any(), any());
+    }
+
+    @Test
     void createRecalculatesAssignsUuidAndPersistsHeaderBeforeSnapshotInOneTransaction() throws Exception {
         CheckoutRequest request = request(item("APPLE", 2));
         when(pricing.quote(request)).thenReturn(quote());

@@ -3,12 +3,14 @@ package com.supermarket.dto;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Max;
 
 public class CheckoutItemRequest {
     @NotBlank
     private String productCode;
     @NotNull
     @Min(0)
+    @Max(100000)
     private Integer quantity;
 
     public CheckoutItemRequest() { }

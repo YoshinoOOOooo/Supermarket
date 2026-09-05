@@ -6,6 +6,7 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public class PromotionUpdateRequest {
     @NotBlank private String name;
@@ -15,7 +16,9 @@ public class PromotionUpdateRequest {
     @DecimalMin(value = "0.00", inclusive = false) private BigDecimal thresholdAmount;
     @DecimalMin(value = "0.00", inclusive = false) private BigDecimal reductionAmount;
     @NotNull private Integer priority;
+    @Schema(type = "string", format = "date-time", example = "2026-09-06T09:30:00", nullable = true)
     private LocalDateTime startTime;
+    @Schema(type = "string", format = "date-time", example = "2026-09-06T18:00:00", nullable = true)
     private LocalDateTime endTime;
 
     public PromotionUpdateRequest() { }
