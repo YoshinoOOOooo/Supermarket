@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.Version;
 import com.supermarket.enums.PromotionType;
 
 import java.math.BigDecimal;
@@ -44,6 +45,9 @@ public class Promotion {
     /** 促销失效时间；为空表示不限制结束时间。 */
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDateTime endTime;
+    /** 乐观锁版本号，每次成功更新后递增。 */
+    @Version
+    private Integer version;
     /** 促销记录创建时间。 */
     private LocalDateTime createdAt;
     /** 促销记录最后更新时间。 */
@@ -73,6 +77,8 @@ public class Promotion {
     public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
     public LocalDateTime getEndTime() { return endTime; }
     public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

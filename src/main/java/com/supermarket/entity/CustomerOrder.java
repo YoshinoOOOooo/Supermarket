@@ -3,6 +3,7 @@ package com.supermarket.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.Version;
 import com.supermarket.enums.OrderStatus;
 
 import java.math.BigDecimal;
@@ -24,6 +25,9 @@ public class CustomerOrder {
     private BigDecimal discountAmount;
     /** 顾客最终应付金额，单位为元。 */
     private BigDecimal payableAmount;
+    /** 乐观锁版本号，每次成功更新后递增。 */
+    @Version
+    private Integer version;
     /** 订单创建时间。 */
     private LocalDateTime createdAt;
     /** 订单最后更新时间。 */
@@ -41,6 +45,8 @@ public class CustomerOrder {
     public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
     public BigDecimal getPayableAmount() { return payableAmount; }
     public void setPayableAmount(BigDecimal payableAmount) { this.payableAmount = payableAmount; }
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
