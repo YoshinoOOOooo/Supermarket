@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,9 +40,21 @@ import static org.mockito.Mockito.when;
 class CheckoutServiceImplTest {
     private final ProductMapper productMapper = mock(ProductMapper.class);
     private final PromotionMapper promotionMapper = mock(PromotionMapper.class);
-    private final PricingQuoteServiceImpl quoteService =
-            new PricingQuoteServiceImpl(productMapper, promotionMapper, new PricingCalculator());
-    private final CheckoutServiceImpl service = new CheckoutServiceImpl(quoteService);
+    private final PricingQuoteServiceImpl quoteService = quoteService();
+    private final CheckoutServiceImpl service = checkoutService();
+
+    private PricingQuoteServiceImpl quoteService() {
+        PricingQuoteServiceImpl target = new PricingQuoteServiceImpl();
+        ReflectionTestUtils.setField(target, "productMapper", productMapper);
+        ReflectionTestUtils.setField(target, "promotionMapper", promotionMapper);
+        return target;
+    }
+
+    private CheckoutServiceImpl checkoutService() {
+        CheckoutServiceImpl target = new CheckoutServiceImpl();
+        ReflectionTestUtils.setField(target, "pricingQuoteService", quoteService);
+        return target;
+    }
 
     @BeforeAll
     static void initializeLambdaMetadata() {

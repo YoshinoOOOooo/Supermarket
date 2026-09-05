@@ -27,15 +27,23 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.junit.jupiter.api.BeforeEach;
 
 @ExtendWith(MockitoExtension.class)
 class PromotionServiceImplTest {
     private final PromotionMapper mapper = mock(PromotionMapper.class);
-    private final PromotionServiceImpl service = new PromotionServiceImpl(mapper);
+    private final ProductMapper products = mock(ProductMapper.class);
+    private final PromotionMutexMapper mutex = mock(PromotionMutexMapper.class);
+    private final PromotionServiceImpl service = promotionService(mapper, products, mutex);
     @Captor private ArgumentCaptor<LambdaQueryWrapper<Promotion>> promotionWrapperCaptor;
 
     @BeforeAll static void initializeLambdaMetadata() {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), Promotion.class);
+    }
+
+    @BeforeEach void allowExistingProduct() {
+        lenient().when(products.selectByIdForUpdate(anyLong())).thenReturn(new Product());
     }
 
     @Test void productDiscountRequiresProductAndRate() {
@@ -126,7 +134,7 @@ class PromotionServiceImplTest {
     }
     @Test void locksProductBeforeCheckingDiscountConflict() {
         ProductMapper products = mock(ProductMapper.class); PromotionMutexMapper mutex = mock(PromotionMutexMapper.class);
-        PromotionServiceImpl lockingService = new PromotionServiceImpl(mapper, products, mutex);
+        PromotionServiceImpl lockingService = promotionService(mapper, products, mutex);
         when(products.selectByIdForUpdate(1L)).thenReturn(new Product());
         when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
         lockingService.create(discount());
@@ -135,7 +143,7 @@ class PromotionServiceImplTest {
     }
     @Test void locksGlobalMutexBeforeCheckingThresholdConflict() {
         ProductMapper products = mock(ProductMapper.class); PromotionMutexMapper mutex = mock(PromotionMutexMapper.class);
-        PromotionServiceImpl lockingService = new PromotionServiceImpl(mapper, products, mutex);
+        PromotionServiceImpl lockingService = promotionService(mapper, products, mutex);
         when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
         lockingService.create(threshold());
         org.mockito.InOrder order = inOrder(mutex, mapper);
@@ -178,6 +186,15 @@ class PromotionServiceImplTest {
     }
     private PromotionCreateRequest discount() { PromotionCreateRequest r = base(PromotionType.PRODUCT_DISCOUNT); r.setProductId(1L); r.setDiscountRate(new BigDecimal("0.80")); return r; }
     private PromotionCreateRequest threshold() { PromotionCreateRequest r = base(PromotionType.ORDER_THRESHOLD_REDUCTION); r.setThresholdAmount(BigDecimal.TEN); r.setReductionAmount(BigDecimal.ONE); return r; }
+
+    private PromotionServiceImpl promotionService(PromotionMapper promotions, ProductMapper productMapper,
+                                                  PromotionMutexMapper mutexMapper) {
+        PromotionServiceImpl target = new PromotionServiceImpl();
+        ReflectionTestUtils.setField(target, "mapper", promotions);
+        ReflectionTestUtils.setField(target, "productMapper", productMapper);
+        ReflectionTestUtils.setField(target, "mutexMapper", mutexMapper);
+        return target;
+    }
     private PromotionCreateRequest base(PromotionType type) { PromotionCreateRequest r = new PromotionCreateRequest(); r.setName("Rule"); r.setType(type); r.setPriority(1); r.setEnabled(true); return r; }
     private Promotion promotion(Long id, boolean enabled) { Promotion p = new Promotion(); p.setId(id); p.setName("Rule"); p.setType(PromotionType.PRODUCT_DISCOUNT); p.setProductId(1L); p.setDiscountRate(new BigDecimal("0.80")); p.setPriority(1); p.setEnabled(enabled); return p; }
     private void assertWrapper(LambdaQueryWrapper<Promotion> wrapper, boolean excludesSelf, boolean productScoped) {

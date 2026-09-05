@@ -18,7 +18,6 @@ import com.supermarket.pricing.PricingResult;
 import com.supermarket.pricing.PricingRule;
 import com.supermarket.pricing.ProductDiscountRule;
 import com.supermarket.service.PricingQuoteService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,24 +28,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import javax.annotation.Resource;
 
 @Service
 public class PricingQuoteServiceImpl implements PricingQuoteService {
-    private final ProductMapper productMapper;
-    private final PromotionMapper promotionMapper;
-    private final PricingCalculator pricingCalculator;
-
-    @Autowired
-    public PricingQuoteServiceImpl(ProductMapper productMapper, PromotionMapper promotionMapper) {
-        this(productMapper, promotionMapper, new PricingCalculator());
-    }
-
-    public PricingQuoteServiceImpl(ProductMapper productMapper, PromotionMapper promotionMapper,
-                                   PricingCalculator pricingCalculator) {
-        this.productMapper = productMapper;
-        this.promotionMapper = promotionMapper;
-        this.pricingCalculator = pricingCalculator;
-    }
+    @Resource
+    private ProductMapper productMapper;
+    @Resource
+    private PromotionMapper promotionMapper;
+    private final PricingCalculator pricingCalculator = new PricingCalculator();
 
     @Override
     public PricingQuote quote(CheckoutRequest request) {

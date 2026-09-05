@@ -24,11 +24,18 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceImplTest {
     private final ProductMapper mapper = mock(ProductMapper.class);
-    private final ProductServiceImpl service = new ProductServiceImpl(mapper);
+    private final ProductServiceImpl service = productService();
+
+    private ProductServiceImpl productService() {
+        ProductServiceImpl target = new ProductServiceImpl();
+        ReflectionTestUtils.setField(target, "mapper", mapper);
+        return target;
+    }
     @Captor private ArgumentCaptor<LambdaQueryWrapper<Product>> productWrapperCaptor;
 
     @BeforeAll static void initializeLambdaMetadata() {

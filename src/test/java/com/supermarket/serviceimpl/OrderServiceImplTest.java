@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,7 +39,15 @@ class OrderServiceImplTest {
     private final PricingQuoteService pricing = mock(PricingQuoteService.class);
     private final CustomerOrderMapper orders = mock(CustomerOrderMapper.class);
     private final OrderItemMapper items = mock(OrderItemMapper.class);
-    private final OrderServiceImpl service = new OrderServiceImpl(pricing, orders, items);
+    private final OrderServiceImpl service = orderService();
+
+    private OrderServiceImpl orderService() {
+        OrderServiceImpl target = new OrderServiceImpl();
+        ReflectionTestUtils.setField(target, "pricingQuoteService", pricing);
+        ReflectionTestUtils.setField(target, "orderMapper", orders);
+        ReflectionTestUtils.setField(target, "itemMapper", items);
+        return target;
+    }
     @BeforeAll
     static void initializeLambdaMetadata() {
         MybatisConfiguration configuration = new MybatisConfiguration();

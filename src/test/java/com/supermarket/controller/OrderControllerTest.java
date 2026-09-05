@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,8 +31,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OrderControllerTest {
     private final OrderService service = mock(OrderService.class);
     private final MockMvc mvc = MockMvcBuilders
-            .standaloneSetup(new OrderController(service), new OrderAdminController(service))
+            .standaloneSetup(orderController(), orderAdminController())
             .setControllerAdvice(new GlobalExceptionHandler()).build();
+
+    private OrderController orderController() {
+        OrderController target = new OrderController();
+        ReflectionTestUtils.setField(target, "orderService", service);
+        return target;
+    }
+
+    private OrderAdminController orderAdminController() {
+        OrderAdminController target = new OrderAdminController();
+        ReflectionTestUtils.setField(target, "orderService", service);
+        return target;
+    }
 
     @Test
     void publicCreateAndGetReturnSnapshotStates() throws Exception {

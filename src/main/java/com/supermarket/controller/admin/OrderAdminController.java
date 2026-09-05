@@ -13,16 +13,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+import javax.annotation.Resource;
 
 @RestController
 @RequestMapping("/api/admin/orders")
 @SecurityRequirement(name = OpenApiConfig.ADMIN_BASIC_SCHEME)
 public class OrderAdminController {
-    private final OrderService orderService;
-
-    public OrderAdminController(OrderService orderService) {
-        this.orderService = orderService;
-    }
+    @Resource
+    private OrderService orderService;
 
     @GetMapping
     public IPage<OrderView> list(@RequestParam(defaultValue = "1") long page,

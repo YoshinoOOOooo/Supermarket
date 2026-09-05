@@ -10,14 +10,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Resource;
 
 @Service
 public class CheckoutServiceImpl implements CheckoutService {
-    private final PricingQuoteService pricingQuoteService;
-
-    public CheckoutServiceImpl(PricingQuoteService pricingQuoteService) {
-        this.pricingQuoteService = pricingQuoteService;
-    }
+    @Resource
+    private PricingQuoteService pricingQuoteService;
 
     @Override
     public CheckoutResultView calculate(CheckoutRequest request) {

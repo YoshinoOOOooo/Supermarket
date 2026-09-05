@@ -13,6 +13,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -27,7 +28,7 @@ class AdminCatalogControllerTest {
     @Test void productAdminCoversCrudListAndEnabledPatchWithDtoBinding() throws Exception {
         ProductService service = mock(ProductService.class);
         when(service.list()).thenReturn(Collections.emptyList());
-        MockMvc mvc = mvc(new ProductAdminController(service));
+        MockMvc mvc = mvc(productController(service));
 
         mvc.perform(post("/api/admin/products").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\" apple-01 \",\"name\":\"Apple\",\"unitPrice\":3.50}")).andExpect(status().isOk());
         mvc.perform(get("/api/admin/products/7")).andExpect(status().isOk());
@@ -45,7 +46,7 @@ class AdminCatalogControllerTest {
     }
 
     @Test void productAdminRejectsInvalidCreateAndUpdateDtos() throws Exception {
-        ProductService service = mock(ProductService.class); MockMvc mvc = mvc(new ProductAdminController(service));
+        ProductService service = mock(ProductService.class); MockMvc mvc = mvc(productController(service));
         mvc.perform(post("/api/admin/products").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"\",\"name\":\"\",\"unitPrice\":-1}")).andExpect(status().isBadRequest());
         mvc.perform(put("/api/admin/products/7").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"\",\"unitPrice\":-1}")).andExpect(status().isBadRequest());
         verify(service, never()).create(any()); verify(service, never()).update(anyLong(), any());
@@ -53,7 +54,7 @@ class AdminCatalogControllerTest {
 
     @Test void promotionAdminCoversCrudListAndEnabledPatchWithDtoBinding() throws Exception {
         PromotionService service = mock(PromotionService.class); when(service.list()).thenReturn(Collections.emptyList());
-        MockMvc mvc = mvc(new PromotionAdminController(service));
+        MockMvc mvc = mvc(promotionController(service));
         String createJson = "{\"name\":\"Apple sale\",\"type\":\"PRODUCT_DISCOUNT\",\"productId\":3,\"discountRate\":0.8,\"priority\":2,\"enabled\":true,\"startTime\":\"2026-01-01T00:00:00\",\"endTime\":\"2026-02-01T00:00:00\"}";
         String updateJson = "{\"name\":\"Apple sale 2\",\"type\":\"PRODUCT_DISCOUNT\",\"productId\":3,\"discountRate\":0.75,\"priority\":3}";
         mvc.perform(post("/api/admin/promotions").contentType(MediaType.APPLICATION_JSON).content(createJson)).andExpect(status().isOk());
@@ -72,7 +73,7 @@ class AdminCatalogControllerTest {
     }
 
     @Test void promotionAdminRejectsInvalidCreateAndUpdateDtos() throws Exception {
-        PromotionService service = mock(PromotionService.class); MockMvc mvc = mvc(new PromotionAdminController(service));
+        PromotionService service = mock(PromotionService.class); MockMvc mvc = mvc(promotionController(service));
         mvc.perform(post("/api/admin/promotions").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"\",\"type\":null,\"priority\":null}")).andExpect(status().isBadRequest());
         mvc.perform(put("/api/admin/promotions/9").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"\",\"type\":null,\"priority\":null}")).andExpect(status().isBadRequest());
         verify(service, never()).create(any()); verify(service, never()).update(anyLong(), any());
@@ -80,5 +81,17 @@ class AdminCatalogControllerTest {
 
     private MockMvc mvc(Object controller) {
         return MockMvcBuilders.standaloneSetup(controller).setControllerAdvice(new GlobalExceptionHandler()).build();
+    }
+
+    private ProductAdminController productController(ProductService service) {
+        ProductAdminController target = new ProductAdminController();
+        ReflectionTestUtils.setField(target, "service", service);
+        return target;
+    }
+
+    private PromotionAdminController promotionController(PromotionService service) {
+        PromotionAdminController target = new PromotionAdminController();
+        ReflectionTestUtils.setField(target, "service", service);
+        return target;
     }
 }

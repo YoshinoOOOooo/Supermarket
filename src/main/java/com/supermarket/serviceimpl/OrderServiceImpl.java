@@ -25,19 +25,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.annotation.Resource;
 
 @Service
 public class OrderServiceImpl implements OrderService {
-    private final PricingQuoteService pricingQuoteService;
-    private final CustomerOrderMapper orderMapper;
-    private final OrderItemMapper itemMapper;
-
-    public OrderServiceImpl(PricingQuoteService pricingQuoteService, CustomerOrderMapper orderMapper,
-                            OrderItemMapper itemMapper) {
-        this.pricingQuoteService = pricingQuoteService;
-        this.orderMapper = orderMapper;
-        this.itemMapper = itemMapper;
-    }
+    @Resource
+    private PricingQuoteService pricingQuoteService;
+    @Resource
+    private CustomerOrderMapper orderMapper;
+    @Resource
+    private OrderItemMapper itemMapper;
 
     @Override
     @Transactional

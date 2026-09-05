@@ -12,16 +12,14 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
+import javax.annotation.Resource;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
-    private final OrderService orderService;
-
-    public OrderController(OrderService orderService) {
-        this.orderService = orderService;
-    }
+    @Resource
+    private OrderService orderService;
 
     @PostMapping
     public OrderView create(@Valid @RequestBody CheckoutRequest request) {
