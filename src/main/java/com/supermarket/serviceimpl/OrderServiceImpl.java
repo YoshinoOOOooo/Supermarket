@@ -27,15 +27,20 @@ import java.util.List;
 import java.util.UUID;
 import javax.annotation.Resource;
 
+/** 订单服务实现，负责重新计价、保存快照以及订单状态流转。 */
 @Service
 public class OrderServiceImpl implements OrderService {
+    /** 统一报价服务，订单金额始终由服务端重新计算。 */
     @Resource
     private PricingQuoteService pricingQuoteService;
+    /** 订单主表持久化访问对象。 */
     @Resource
     private CustomerOrderMapper orderMapper;
+    /** 订单商品快照持久化访问对象。 */
     @Resource
     private OrderItemMapper itemMapper;
 
+    /** 在同一事务中重新计价并创建未支付订单及明细快照。 */
     @Override
     @Transactional
     public OrderView create(CheckoutRequest request) {
@@ -61,6 +66,7 @@ public class OrderServiceImpl implements OrderService {
         return view(order, snapshots);
     }
 
+    /** 使用一致性只读事务查询订单头和对应商品快照。 */
     @Override
     @Transactional(readOnly = true)
     public OrderView findByOrderNo(UUID orderNo) {
@@ -68,6 +74,7 @@ public class OrderServiceImpl implements OrderService {
         return view(order, snapshots(order.getId()));
     }
 
+    /** 仅允许未支付订单重新计价并原子替换金额与明细快照。 */
     @Override
     @Transactional
     public OrderView update(UUID orderNo, CheckoutRequest request) {
@@ -96,18 +103,21 @@ public class OrderServiceImpl implements OrderService {
         return view(order, replacement);
     }
 
+    /** 将未支付订单转换为已完成状态。 */
     @Override
     @Transactional
     public OrderView complete(UUID orderNo) {
         return transition(orderNo, OrderStatus.COMPLETED);
     }
 
+    /** 将未支付订单转换为已取消状态。 */
     @Override
     @Transactional
     public OrderView cancel(UUID orderNo) {
         return transition(orderNo, OrderStatus.CANCELLED);
     }
 
+    /** 分页查询订单，并在同一只读事务中组装每张订单的明细。 */
     @Override
     @Transactional(readOnly = true)
     public IPage<OrderView> list(long page, long size) {
@@ -117,6 +127,10 @@ public class OrderServiceImpl implements OrderService {
         return result.convert(order -> view(order, snapshots(order.getId())));
     }
 
+    /**
+     * 执行带旧状态条件的状态更新。
+     * 并发更新失败后重新读取，同目标状态按幂等成功处理。
+     */
     private OrderView transition(UUID orderNo, OrderStatus target) {
         CustomerOrder order = required(orderNo);
         if (order.getStatus() == target) return view(order, snapshots(order.getId()));
@@ -140,6 +154,7 @@ public class OrderServiceImpl implements OrderService {
         return view(order, snapshots(order.getId()));
     }
 
+    /** 根据对外订单号读取必须存在的订单。 */
     private CustomerOrder required(UUID orderNo) {
         CustomerOrder order = orderMapper.selectOne(new LambdaQueryWrapper<CustomerOrder>()
                 .eq(CustomerOrder::getOrderNo, orderNo.toString()));
@@ -147,11 +162,13 @@ public class OrderServiceImpl implements OrderService {
         return order;
     }
 
+    /** 按明细主键顺序查询订单保存的商品快照。 */
     private List<OrderItem> snapshots(Long orderId) {
         return itemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
                 .eq(OrderItem::getOrderId, orderId).orderByAsc(OrderItem::getId));
     }
 
+    /** 根据报价行构造可持久化的订单明细快照。 */
     private OrderItem snapshot(Long orderId, PricingQuote.Line line) {
         OrderItem item = new OrderItem();
         item.setOrderId(orderId);
@@ -166,6 +183,7 @@ public class OrderServiceImpl implements OrderService {
         return item;
     }
 
+    /** 将订单实体和明细快照组装为对外订单视图。 */
     private OrderView view(CustomerOrder order, List<OrderItem> snapshots) {
         List<OrderItemView> itemViews = new ArrayList<OrderItemView>();
         for (OrderItem item : snapshots) {
@@ -177,6 +195,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getCreatedAt(), order.getUpdatedAt());
     }
 
+    /** 正式订单至少需要一个购买数量大于零的商品。 */
     private void requirePositiveQuantity(CheckoutRequest request) {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw invalid("Order items must not be empty");
@@ -187,10 +206,12 @@ public class OrderServiceImpl implements OrderService {
         throw invalid("Order must contain a positive quantity");
     }
 
+    /** 创建普通请求参数错误。 */
     private BusinessException invalid(String message) {
         return new BusinessException(ErrorCode.INVALID_REQUEST, message);
     }
 
+    /** 创建订单状态冲突错误。 */
     private BusinessException invalidState(String message) {
         return new BusinessException(ErrorCode.INVALID_ORDER_STATE, message);
     }

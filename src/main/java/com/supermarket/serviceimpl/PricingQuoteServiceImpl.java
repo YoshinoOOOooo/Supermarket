@@ -30,14 +30,19 @@ import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Resource;
 
+/** 统一报价服务实现，连接商品、促销持久化数据与纯计价领域模型。 */
 @Service
 public class PricingQuoteServiceImpl implements PricingQuoteService {
+    /** 商品持久化访问对象，用于批量加载本次结算商品。 */
     @Resource
     private ProductMapper productMapper;
+    /** 促销持久化访问对象，用于加载当前生效规则。 */
     @Resource
     private PromotionMapper promotionMapper;
+    /** 无状态纯计价计算器。 */
     private final PricingCalculator pricingCalculator = new PricingCalculator();
 
+    /** 完成请求规范化、数据加载、规则组装和最终报价计算。 */
     @Override
     public PricingQuote quote(CheckoutRequest request) {
         LinkedHashMap<String, Integer> quantities = normalizedQuantities(request);
@@ -59,6 +64,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         return toQuote(result, productsByCode);
     }
 
+    /** 校验购物项并将商品编码规范化为大写，同时拒绝重复编码。 */
     private LinkedHashMap<String, Integer> normalizedQuantities(CheckoutRequest request) {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw invalid("Checkout items must not be empty");
@@ -77,6 +83,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         return quantities;
     }
 
+    /** 将商品列表按标准化业务编码建立索引。 */
     private Map<String, Product> indexProducts(List<Product> products) {
         Map<String, Product> indexed = new HashMap<String, Product>();
         if (products != null) {
@@ -89,6 +96,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         return indexed;
     }
 
+    /** 确认请求中的商品全部存在且处于启用状态。 */
     private void validateProducts(Map<String, Integer> quantities, Map<String, Product> products) {
         for (String code : quantities.keySet()) {
             Product product = products.get(code);
@@ -101,6 +109,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         }
     }
 
+    /** 构造数据库层面的当前有效促销查询条件。 */
     private LambdaQueryWrapper<Promotion> activePromotionQuery(LocalDateTime now) {
         return new LambdaQueryWrapper<Promotion>()
                 .eq(Promotion::getEnabled, true)
@@ -109,6 +118,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
                 .orderByAsc(Promotion::getPriority);
     }
 
+    /** 在内存中再次过滤有效时间，防止测试数据或并发边界影响报价。 */
     private List<Promotion> currentPromotions(List<Promotion> promotions, LocalDateTime now) {
         List<Promotion> current = new ArrayList<Promotion>();
         if (promotions == null) return current;
@@ -122,6 +132,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         return current;
     }
 
+    /** 将持久化促销转换为领域规则，并拒绝重复有效规则。 */
     private List<PricingRule> rules(List<Promotion> promotions, Map<String, Product> productsByCode) {
         Map<Long, String> codesById = new HashMap<Long, String>();
         for (Map.Entry<String, Product> entry : productsByCode.entrySet()) {
@@ -150,6 +161,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         return rules;
     }
 
+    /** 将纯计价结果补充商品快照信息，形成订单和试算共享的报价。 */
     private PricingQuote toQuote(PricingResult result, Map<String, Product> products) {
         List<PricingQuote.Line> lines = new ArrayList<PricingQuote.Line>();
         for (PricingResult.LineResult line : result.getLineResults()) {
@@ -162,6 +174,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         return new PricingQuote(lines, result.getOriginalAmount(), result.getDiscountAmount(), result.getPayableAmount());
     }
 
+    /** 创建请求参数错误异常。 */
     private BusinessException invalid(String message) {
         return new BusinessException(ErrorCode.INVALID_REQUEST, message);
     }

@@ -12,11 +12,14 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Resource;
 
+/** 购物车试算服务实现，将内部报价转换为公开结算结果。 */
 @Service
 public class CheckoutServiceImpl implements CheckoutService {
+    /** 统一报价服务，负责加载商品、促销并执行计价。 */
     @Resource
     private PricingQuoteService pricingQuoteService;
 
+    /** 计算购物车金额但不创建订单。 */
     @Override
     public CheckoutResultView calculate(CheckoutRequest request) {
         PricingQuote quote = pricingQuoteService.quote(request);
