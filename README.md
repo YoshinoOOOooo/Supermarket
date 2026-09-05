@@ -46,6 +46,7 @@ $env:DB_USERNAME = "root"
 $env:DB_PASSWORD = Read-Host "MySQL password"
 $env:ADMIN_USERNAME = "admin"
 $env:ADMIN_PASSWORD = Read-Host "Administrator password"
+if ([string]::IsNullOrWhiteSpace($env:ADMIN_PASSWORD)) { throw "ADMIN_PASSWORD must not be blank" }
 ```
 
 运行快速测试和启动应用：
@@ -198,5 +199,6 @@ mvn -DexcludedGroups= -Dgroups=mysql -Dtest=PricingScenariosAcceptanceTest test
 - 不要提交真实数据库密码、管理员密码、`.env` 或 `application-local.yml`。
 - 应用不提供管理员密码默认值；未设置 `ADMIN_PASSWORD` 时会拒绝启动，避免以已知凭据暴露管理接口。
 - `data.sql` 是可重复执行的演示基准重置脚本：会恢复三种水果的名称、价格和启用状态，并补齐默认促销；请勿对需要保留人工改价的生产数据重复执行。
+- 全新本地库可重新执行 `schema.sql` 和 `data.sql`。旧版库请先备份，再仅执行一次 `db/migration-add-promotion-code.sql`；迁移脚本按主键生成稳定占位 code，种子规则只按 code 识别，禁止依赖可修改的 name。
 - 正式下单会在事务中重新计价，客户端不能提交单价或总价。
 - 当前项目不包含库存、支付网关、退款、配送、顾客账号或多管理员管理。

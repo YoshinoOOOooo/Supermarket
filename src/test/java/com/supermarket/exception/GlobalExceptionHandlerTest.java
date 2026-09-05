@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.validation.Valid;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -82,6 +83,11 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
     }
 
+    @Test void unrelatedIntegrityFailureRemainsSanitizedInternalError() throws Exception {
+        mockMvc.perform(post("/test/integrity")).andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"));
+    }
+
     @RestController
     @Validated
     static class TestController {
@@ -103,6 +109,7 @@ class GlobalExceptionHandlerTest {
         void unexpected() {
             throw new IllegalStateException("database password leaked");
         }
+        @PostMapping("/test/integrity") void integrity() { throw new DataIntegrityViolationException("secret sql"); }
         @org.springframework.web.bind.annotation.GetMapping("/test/number/{id}") void number(@PathVariable Long id) {}
         @org.springframework.web.bind.annotation.GetMapping("/test/query") void query(@RequestParam Boolean enabled) {}
         @org.springframework.web.bind.annotation.GetMapping("/test/required") void required(@RequestParam String value) {}

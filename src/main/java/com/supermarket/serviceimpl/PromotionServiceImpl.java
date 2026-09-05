@@ -17,6 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Locale;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.CannotAcquireLockException;
 
 @Service
 public class PromotionServiceImpl implements PromotionService {
@@ -30,15 +33,18 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override @Transactional public PromotionView create(PromotionCreateRequest r) {
-        Promotion p = new Promotion(); copy(p, r.getName(), r.getType(), r.getProductId(), r.getDiscountRate(), r.getThresholdAmount(), r.getReductionAmount(), r.getPriority(), r.getStartTime(), r.getEndTime());
-        p.setEnabled(r.getEnabled() == null || r.getEnabled()); validate(p); if (p.getEnabled()) { lockConflictDomain(p); validateNoConflict(p); } mapper.insert(p); return view(p);
+        Promotion p = new Promotion(); p.setCode(normalizeCode(r.getCode(), r.getName())); copy(p, r.getName(), r.getType(), r.getProductId(), r.getDiscountRate(), r.getThresholdAmount(), r.getReductionAmount(), r.getPriority(), r.getStartTime(), r.getEndTime());
+        try { p.setEnabled(r.getEnabled() == null || r.getEnabled()); validate(p); if (p.getEnabled()) { lockConflictDomain(p); validateNoConflict(p); } mapper.insert(p); return view(p); }
+        catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }
     @Override @Transactional public PromotionView update(Long id, PromotionUpdateRequest r) {
         Promotion p = required(id); copy(p, r.getName(), r.getType(), r.getProductId(), r.getDiscountRate(), r.getThresholdAmount(), r.getReductionAmount(), r.getPriority(), r.getStartTime(), r.getEndTime());
-        validate(p); if (Boolean.TRUE.equals(p.getEnabled())) { lockConflictDomain(p); validateNoConflict(p); } mapper.updateById(p); return view(p);
+        try { validate(p); if (Boolean.TRUE.equals(p.getEnabled())) { lockConflictDomain(p); validateNoConflict(p); } mapper.updateById(p); return view(p); }
+        catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }
     @Override @Transactional public PromotionView setEnabled(Long id, boolean enabled) {
-        Promotion p = required(id); p.setEnabled(enabled); validate(p); if (enabled) { lockConflictDomain(p); validateNoConflict(p); } mapper.updateById(p); return view(p);
+        Promotion p = required(id); p.setEnabled(enabled); try { validate(p); if (enabled) { lockConflictDomain(p); validateNoConflict(p); } mapper.updateById(p); return view(p); }
+        catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }
     @Override public PromotionView find(Long id) { return view(required(id)); }
     @Override public List<PromotionView> list() { return mapper.selectList(null).stream().map(this::view).collect(Collectors.toList()); }
@@ -73,5 +79,7 @@ public class PromotionServiceImpl implements PromotionService {
     }
     private Promotion required(Long id) { Promotion p = mapper.selectById(id); if (p == null) invalid("Promotion not found"); return p; }
     private void invalid(String message) { throw new BusinessException(ErrorCode.INVALID_REQUEST, message); }
-    private PromotionView view(Promotion p) { return new PromotionView(p.getId(), p.getName(), p.getType(), p.getProductId(), p.getDiscountRate(), p.getThresholdAmount(), p.getReductionAmount(), p.getPriority(), p.getEnabled(), p.getStartTime(), p.getEndTime(), p.getCreatedAt(), p.getUpdatedAt()); }
+    private String normalizeCode(String code, String name) { String source = code == null || code.trim().isEmpty() ? name : code; return source.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_").replaceAll("^_+|_+$", ""); }
+    private BusinessException conflict() { return new BusinessException(ErrorCode.PROMOTION_CONFLICT, "Promotion configuration conflicts with another rule"); }
+    private PromotionView view(Promotion p) { return new PromotionView(p.getId(), p.getCode(), p.getName(), p.getType(), p.getProductId(), p.getDiscountRate(), p.getThresholdAmount(), p.getReductionAmount(), p.getPriority(), p.getEnabled(), p.getStartTime(), p.getEndTime(), p.getCreatedAt(), p.getUpdatedAt()); }
 }

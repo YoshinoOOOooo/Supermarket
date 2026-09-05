@@ -7,8 +7,6 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.validation.BindException;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -35,11 +33,6 @@ public class GlobalExceptionHandler {
         return response(exception.getErrorCode(), exception.getMessage(), statusFor(exception.getErrorCode()));
     }
 
-    @ExceptionHandler({DataIntegrityViolationException.class, CannotAcquireLockException.class})
-    public ResponseEntity<ApiError> handleDatabaseConflict(Exception exception) {
-        return response(ErrorCode.PROMOTION_CONFLICT, "Concurrent data conflict", HttpStatus.CONFLICT);
-    }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception exception) {
         return response(ErrorCode.INTERNAL_ERROR, "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
@@ -52,6 +45,7 @@ public class GlobalExceptionHandler {
                 return HttpStatus.NOT_FOUND;
             case PRODUCT_DISABLED:
             case PROMOTION_CONFLICT:
+            case RESOURCE_CONFLICT:
             case INVALID_ORDER_STATE:
                 return HttpStatus.CONFLICT;
             case INTERNAL_ERROR:

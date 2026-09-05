@@ -26,10 +26,18 @@ public class SecurityConfig {
             @Value("${app.security.admin.username}") String username,
             @Value("${app.security.admin.password}") String password,
             PasswordEncoder passwordEncoder) {
+        requireConfigured("administrator username", username);
+        requireConfigured("administrator password", password);
         return new InMemoryUserDetailsManager(User.withUsername(username)
                 .password(passwordEncoder.encode(password))
                 .roles("ADMIN")
                 .build());
+    }
+
+    private void requireConfigured(String setting, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalStateException("Security configuration error: " + setting + " must not be blank");
+        }
     }
 
     @Bean

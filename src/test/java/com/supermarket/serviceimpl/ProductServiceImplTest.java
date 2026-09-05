@@ -23,6 +23,7 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceImplTest {
@@ -85,6 +86,15 @@ class ProductServiceImplTest {
     @Test void listMapsEntitiesToViews() {
         when(mapper.selectList(any())).thenReturn(Collections.singletonList(product(1L, "A", "Apple", BigDecimal.ONE, true)));
         assertEquals("A", service.list().get(0).getCode());
+    }
+
+    @Test void mapsConcurrentDuplicateCodeToResourceConflict() {
+        ProductCreateRequest request = new ProductCreateRequest();
+        request.setCode("APPLE"); request.setName("Apple"); request.setUnitPrice(new BigDecimal("8.00"));
+        when(mapper.selectCount(any())).thenReturn(0L);
+        when(mapper.insert(any())).thenThrow(new DataIntegrityViolationException("duplicate"));
+        assertEquals(ErrorCode.RESOURCE_CONFLICT,
+                assertThrows(BusinessException.class, () -> service.create(request)).getErrorCode());
     }
 
     private Product product(Long id, String code, String name, BigDecimal price, boolean enabled) {

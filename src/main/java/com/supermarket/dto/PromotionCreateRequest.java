@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class PromotionCreateRequest {
+    private String code;
     @NotBlank private String name;
     @NotNull private PromotionType type;
     private Long productId;
@@ -20,6 +21,8 @@ public class PromotionCreateRequest {
     private LocalDateTime endTime;
 
     public PromotionCreateRequest() { }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public PromotionType getType() { return type; }

@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 public final class PromotionView {
     private final Long id;
+    private final String code;
     private final String name;
     private final PromotionType type;
     private final Long productId;
@@ -19,12 +20,13 @@ public final class PromotionView {
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
-    public PromotionView(Long id, String name, PromotionType type, Long productId,
+    public PromotionView(Long id, String code, String name, PromotionType type, Long productId,
                          BigDecimal discountRate, BigDecimal thresholdAmount,
                          BigDecimal reductionAmount, Integer priority, Boolean enabled,
                          LocalDateTime startTime, LocalDateTime endTime,
                          LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
+        this.code = code;
         this.name = name;
         this.type = type;
         this.productId = productId;
@@ -39,6 +41,7 @@ public final class PromotionView {
         this.updatedAt = updatedAt;
     }
     public Long getId() { return id; }
+    public String getCode() { return code; }
     public String getName() { return name; }
     public PromotionType getType() { return type; }
     public Long getProductId() { return productId; }

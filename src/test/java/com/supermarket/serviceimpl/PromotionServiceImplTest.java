@@ -26,6 +26,7 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class PromotionServiceImplTest {
@@ -139,6 +140,12 @@ class PromotionServiceImplTest {
         lockingService.create(threshold());
         org.mockito.InOrder order = inOrder(mutex, mapper);
         order.verify(mutex).lockGlobalThreshold(); order.verify(mapper).selectList(any()); order.verify(mapper).insert(any());
+    }
+    @Test void mapsPromotionWriteIntegrityFailureToPromotionConflict() {
+        when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
+        when(mapper.insert(any())).thenThrow(new DataIntegrityViolationException("duplicate code"));
+        assertEquals(ErrorCode.PROMOTION_CONFLICT, assertThrows(BusinessException.class,
+                () -> service.create(discount())).getErrorCode());
     }
     private PromotionCreateRequest discount() { PromotionCreateRequest r = base(PromotionType.PRODUCT_DISCOUNT); r.setProductId(1L); r.setDiscountRate(new BigDecimal("0.80")); return r; }
     private PromotionCreateRequest threshold() { PromotionCreateRequest r = base(PromotionType.ORDER_THRESHOLD_REDUCTION); r.setThresholdAmount(BigDecimal.TEN); r.setReductionAmount(BigDecimal.ONE); return r; }

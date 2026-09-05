@@ -184,6 +184,12 @@ class OrderServiceImplTest {
         verifyNoInteractions(pricing);
     }
 
+    @Test void compoundReadsUseReadOnlyTransactions() throws Exception {
+        Transactional find = OrderServiceImpl.class.getMethod("findByOrderNo", UUID.class).getAnnotation(Transactional.class);
+        Transactional list = OrderServiceImpl.class.getMethod("list", long.class, long.class).getAnnotation(Transactional.class);
+        assertNotNull(find); assertTrue(find.readOnly()); assertNotNull(list); assertTrue(list.readOnly());
+    }
+
     private PricingQuote quote() {
         return new PricingQuote(Collections.singletonList(new PricingQuote.Line(
                 7L, "APPLE", "Apple at checkout", 2, money("10.00"), money("20.00"),

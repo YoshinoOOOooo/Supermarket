@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS product (
 
 CREATE TABLE IF NOT EXISTS promotion (
     id BIGINT NOT NULL AUTO_INCREMENT,
+    code VARCHAR(64) NOT NULL,
     name VARCHAR(128) NOT NULL,
     type VARCHAR(64) NOT NULL,
     product_id BIGINT NULL,
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS promotion (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
+    UNIQUE KEY uk_promotion_code (code),
     KEY idx_promotion_enabled_type (enabled, type),
     KEY idx_promotion_product (product_id),
     CONSTRAINT fk_promotion_product FOREIGN KEY (product_id) REFERENCES product (id)

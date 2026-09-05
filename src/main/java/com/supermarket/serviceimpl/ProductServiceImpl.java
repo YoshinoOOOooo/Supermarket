@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -27,7 +28,11 @@ public class ProductServiceImpl implements ProductService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product code already exists");
         }
         Product product = new Product(); product.setCode(code); product.setName(request.getName());
-        product.setUnitPrice(request.getUnitPrice()); product.setEnabled(true); mapper.insert(product); return view(product);
+        product.setUnitPrice(request.getUnitPrice()); product.setEnabled(true);
+        try { mapper.insert(product); } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Product code already exists");
+        }
+        return view(product);
     }
     @Override @Transactional public ProductView update(Long id, ProductUpdateRequest request) {
         Product product = required(id); product.setName(request.getName()); product.setUnitPrice(request.getUnitPrice()); mapper.updateById(product); return view(product);

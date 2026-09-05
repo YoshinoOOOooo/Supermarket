@@ -24,6 +24,7 @@ import java.util.Base64;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringJUnitWebConfig
 @ContextConfiguration(classes = {
@@ -89,6 +90,13 @@ class SecurityConfigTest {
         mockMvc.perform(get("/api/admin/products")
                         .header("Authorization", basic("local-admin", "test-secret")))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test void rejectsBlankAdministratorConfiguration() {
+        SecurityConfig config = new SecurityConfig();
+        assertThrows(IllegalStateException.class, () -> config.userDetailsService(" ", "secret", config.passwordEncoder()));
+        assertThrows(IllegalStateException.class, () -> config.userDetailsService("admin", "   ", config.passwordEncoder()));
+        assertThrows(IllegalStateException.class, () -> config.userDetailsService(null, "secret", config.passwordEncoder()));
     }
 
     private static String basic(String username, String password) {

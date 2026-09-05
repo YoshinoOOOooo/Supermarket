@@ -65,6 +65,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public OrderView findByOrderNo(UUID orderNo) {
         CustomerOrder order = required(orderNo);
         return view(order, snapshots(order.getId()));
@@ -111,6 +112,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public IPage<OrderView> list(long page, long size) {
         if (page < 1 || size < 1) throw invalid("Page and size must be positive");
         IPage<CustomerOrder> result = orderMapper.selectPage(new Page<CustomerOrder>(page, size),
