@@ -98,8 +98,10 @@ public class OrderServiceImpl implements OrderService {
         for (PricingQuote.Line line : quote.getLines()) {
             OrderItem item = snapshot(order.getId(), line); itemMapper.insert(item); replacement.add(item);
         }
-        order.setOriginalAmount(quote.getOriginalAmount()); order.setDiscountAmount(quote.getDiscountAmount());
-        order.setPayableAmount(quote.getPayableAmount()); order.setUpdatedAt(now);
+        order.setOriginalAmount(quote.getOriginalAmount());
+        order.setDiscountAmount(quote.getDiscountAmount());
+        order.setPayableAmount(quote.getPayableAmount());
+        order.setUpdatedAt(now);
         return view(order, replacement);
     }
 
