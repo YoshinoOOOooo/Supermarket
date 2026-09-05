@@ -88,17 +88,24 @@ Invoke-RestMethod -Method Patch -Uri "$base/api/admin/products/$productId/enable
 
 ### 促销启用
 
-查看促销，并用实际 ID 启用规则：
+查看促销。初始化 SQL 没有写死促销主键，因此应从管理接口返回值中取得真实 ID；启停接口使用查询参数 `enabled`，不需要请求体：
 
 ```powershell
-Invoke-RestMethod -Method Get -Uri "$base/api/admin/promotions" -Headers $headers
-$promotionId = 1
-Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$promotionId/enabled?enabled=true" -Headers $headers
+$promotions = Invoke-RestMethod -Method Get -Uri "$base/api/admin/promotions" -Headers $headers
+$strawberryDiscount = $promotions | Where-Object { $_.type -eq "PRODUCT_DISCOUNT" -and $_.name -eq "Strawberry 80% Discount" } | Select-Object -First 1
+$thresholdReduction = $promotions | Where-Object { $_.type -eq "ORDER_THRESHOLD_REDUCTION" -and $_.name -eq "Spend 100 Save 10" } | Select-Object -First 1
+
+if ($null -eq $strawberryDiscount -or $null -eq $thresholdReduction) {
+    throw "未找到 data.sql 初始化的两条促销，请重新执行初始化 SQL"
+}
+
+$strawberryDiscountId = $strawberryDiscount.id
+$thresholdReductionId = $thresholdReduction.id
 ```
 
 ### A–D 试算
 
-初始化数据默认启用两项促销。若要严格复现 A、B 的“无促销”结果，应先通过上述管理接口停用草莓折扣和满减规则；C 只启用草莓折扣；D 同时启用两项规则。
+`data.sql` 默认启用两项促销。下面的命令在每个场景前都通过真实管理接口明确设置两条规则的状态，因此从默认状态开始按顺序整段执行即可复现四个题目结果。
 
 ```powershell
 $scenarioA = '{"items":[{"productCode":"APPLE","quantity":2},{"productCode":"STRAWBERRY","quantity":3}]}'
@@ -106,9 +113,24 @@ $scenarioB = '{"items":[{"productCode":"APPLE","quantity":2},{"productCode":"STR
 $scenarioC = $scenarioB
 $scenarioD = '{"items":[{"productCode":"APPLE","quantity":5},{"productCode":"STRAWBERRY","quantity":5},{"productCode":"MANGO","quantity":1}]}'
 
+# A：关闭草莓 8 折，关闭满 100 减 10
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$strawberryDiscountId/enabled?enabled=false" -Headers $headers
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$thresholdReductionId/enabled?enabled=false" -Headers $headers
 Invoke-RestMethod -Method Post -Uri "$base/api/checkout/calculate" -ContentType "application/json" -Body $scenarioA # 55.00，无促销
+
+# B：关闭草莓 8 折，关闭满 100 减 10
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$strawberryDiscountId/enabled?enabled=false" -Headers $headers
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$thresholdReductionId/enabled?enabled=false" -Headers $headers
 Invoke-RestMethod -Method Post -Uri "$base/api/checkout/calculate" -ContentType "application/json" -Body $scenarioB # 75.00，无促销
+
+# C：启用草莓 8 折，关闭满 100 减 10
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$strawberryDiscountId/enabled?enabled=true" -Headers $headers
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$thresholdReductionId/enabled?enabled=false" -Headers $headers
 Invoke-RestMethod -Method Post -Uri "$base/api/checkout/calculate" -ContentType "application/json" -Body $scenarioC # 67.20，仅草莓 8 折
+
+# D：启用草莓 8 折，启用满 100 减 10
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$strawberryDiscountId/enabled?enabled=true" -Headers $headers
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$thresholdReductionId/enabled?enabled=true" -Headers $headers
 Invoke-RestMethod -Method Post -Uri "$base/api/checkout/calculate" -ContentType "application/json" -Body $scenarioD # 102.00，两项促销
 ```
 
