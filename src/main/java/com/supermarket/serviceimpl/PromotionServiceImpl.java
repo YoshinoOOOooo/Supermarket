@@ -50,7 +50,8 @@ public class PromotionServiceImpl implements PromotionService {
                 lockConflictDomain(p);
                 validateNoConflict(p);
             }
-            mapper.insert(p); return view(p);
+            if (mapper.insert(p) != 1) throw conflict();
+            return view(required(p.getId()));
         }
         catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }
@@ -64,7 +65,7 @@ public class PromotionServiceImpl implements PromotionService {
             if (Boolean.TRUE.equals(p.getEnabled())) {
                 lockConflictDomain(p); validateNoConflict(p);
             }
-            mapper.updateById(p);
+            if (mapper.updateById(p) != 1) throw conflict();
             return view(required(id)); }
         catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }
@@ -78,7 +79,7 @@ public class PromotionServiceImpl implements PromotionService {
                 lockConflictDomain(p);
                 validateNoConflict(p);
             }
-            mapper.updateById(p);
+            if (mapper.updateById(p) != 1) throw conflict();
             return view(required(id)); }
         catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }

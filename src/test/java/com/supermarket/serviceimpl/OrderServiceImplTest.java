@@ -185,6 +185,20 @@ class OrderServiceImplTest {
         verify(items).delete(any()); verify(items).insert(any(OrderItem.class));
     }
 
+    @Test void updateCarriesTheLoadedOptimisticLockVersion() {
+        UUID number = UUID.randomUUID(); CheckoutRequest request = request(item("APPLE", 3));
+        CustomerOrder existing = order(9L, number, OrderStatus.UNPAID); existing.setVersion(4);
+        when(orders.selectOne(any())).thenReturn(existing);
+        when(pricing.quote(request)).thenReturn(quote());
+        when(orders.update(any(CustomerOrder.class), anyOrderWrapper())).thenReturn(1);
+
+        service.update(number, request);
+
+        ArgumentCaptor<CustomerOrder> update = ArgumentCaptor.forClass(CustomerOrder.class);
+        verify(orders).update(update.capture(), anyOrderWrapper());
+        assertEquals(Integer.valueOf(4), update.getValue().getVersion());
+    }
+
     @Test void updateRejectsTerminalOrder() {
         UUID number = UUID.randomUUID();
         when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.CANCELLED));

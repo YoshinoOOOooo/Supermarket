@@ -38,11 +38,13 @@ public class ProductServiceImpl implements ProductService {
         product.setUnitPrice(request.getUnitPrice());
         product.setEnabled(true);
 
-        try { mapper.insert(product); }
+        try {
+            if (mapper.insert(product) != 1) throw conflict("Product was not created");
+        }
         catch (DataIntegrityViolationException ex) {
             throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Product code already exists");
         }
-        return view(product);
+        return view(required(product.getId()));
     }
     /** 更新指定商品的名称和每斤单价。 */
     @Override @Transactional public ProductView update(Long id, ProductUpdateRequest request) {
@@ -50,18 +52,16 @@ public class ProductServiceImpl implements ProductService {
         product.setName(request.getName());
 
         product.setUnitPrice(request.getUnitPrice());
-        mapper.updateById(product);
-
-        return view(product);
+        if (mapper.updateById(product) != 1) throw conflict("Product changed concurrently");
+        return view(required(id));
     }
     /** 启用或停用指定商品。 */
     @Override @Transactional public ProductView setEnabled(Long id, boolean enabled) {
         Product product = required(id);
 
         product.setEnabled(enabled);
-        mapper.updateById(product);
-
-        return view(product);
+        if (mapper.updateById(product) != 1) throw conflict("Product changed concurrently");
+        return view(required(id));
 
     }
     /** 根据主键查询商品，不存在时抛出业务异常。 */
@@ -76,6 +76,11 @@ public class ProductServiceImpl implements ProductService {
     private Product required(Long id) {
         Product p = mapper.selectById(id);
         if (p == null) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "Product not found"); return p; }
+
+    /** 创建统一的商品写入冲突异常。 */
+    private BusinessException conflict(String message) {
+        return new BusinessException(ErrorCode.RESOURCE_CONFLICT, message);
+    }
 
     /** 将商品实体转换为对外视图，避免控制器暴露持久化对象。 */
     private ProductView view(Product p) {

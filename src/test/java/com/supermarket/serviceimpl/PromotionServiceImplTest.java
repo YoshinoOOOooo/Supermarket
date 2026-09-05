@@ -25,6 +25,7 @@ import org.apache.ibatis.builder.MapperBuilderAssistant;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -39,6 +40,7 @@ class PromotionServiceImplTest {
     private final PromotionMutexMapper mutex = mock(PromotionMutexMapper.class);
     private final PromotionServiceImpl service = promotionService(mapper, products, mutex);
     @Captor private ArgumentCaptor<LambdaQueryWrapper<Promotion>> promotionWrapperCaptor;
+    private final AtomicReference<Promotion> insertedPromotion = new AtomicReference<Promotion>();
 
     @BeforeAll static void initializeLambdaMetadata() {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), Promotion.class);
@@ -46,6 +48,14 @@ class PromotionServiceImplTest {
 
     @BeforeEach void allowExistingProduct() {
         lenient().when(products.selectByIdForUpdate(anyLong())).thenReturn(new Product());
+        lenient().doAnswer(invocation -> {
+            Promotion promotion = invocation.getArgument(0);
+            if (promotion.getId() == null) promotion.setId(100L);
+            insertedPromotion.set(promotion);
+            return 1;
+        }).when(mapper).insert(any(Promotion.class));
+        lenient().when(mapper.selectById(100L)).thenAnswer(invocation -> insertedPromotion.get());
+        lenient().when(mapper.updateById(any(Promotion.class))).thenReturn(1);
     }
 
     @Test void productDiscountRequiresProductAndRate() {
@@ -117,6 +127,28 @@ class PromotionServiceImplTest {
     @Test void disabledRuleDoesNotCheckConflictAndCanBeCreated() {
         PromotionCreateRequest request = discount(); request.setEnabled(false); service.create(request);
         verify(mapper, never()).selectList(any()); verify(mapper).insert(any(Promotion.class));
+    }
+    @Test void createReturnsReloadedDatabaseTimestamps() {
+        Promotion persisted = promotion(8L, false);
+        persisted.setCreatedAt(LocalDateTime.of(2026, 9, 6, 12, 0));
+        when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
+        doAnswer(invocation -> { ((Promotion) invocation.getArgument(0)).setId(8L); return 1; })
+                .when(mapper).insert(any(Promotion.class));
+        when(mapper.selectById(8L)).thenReturn(persisted);
+
+        assertEquals(persisted.getCreatedAt(), service.create(discount()).getCreatedAt());
+    }
+    @Test void updateReportsConcurrentModificationWhenVersionLoses() {
+        Promotion existing = promotion(5L, true);
+        when(mapper.selectById(5L)).thenReturn(existing);
+        when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
+        when(mapper.updateById(existing)).thenReturn(0);
+        PromotionUpdateRequest request = new PromotionUpdateRequest();
+        request.setName("Changed"); request.setType(PromotionType.PRODUCT_DISCOUNT);
+        request.setProductId(1L); request.setDiscountRate(new BigDecimal("0.75")); request.setPriority(2);
+
+        assertEquals(ErrorCode.PROMOTION_CONFLICT,
+                assertThrows(BusinessException.class, () -> service.update(5L, request)).getErrorCode());
     }
     @Test void updatingAnEnabledRuleRechecksConflicts() {
         Promotion existing = promotion(5L, true); when(mapper.selectById(5L)).thenReturn(existing);

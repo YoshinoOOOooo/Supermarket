@@ -11,6 +11,7 @@ import com.supermarket.exception.ErrorCode;
 import com.supermarket.mapper.ProductMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -18,7 +19,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,9 +40,21 @@ class ProductServiceImplTest {
         return target;
     }
     @Captor private ArgumentCaptor<LambdaQueryWrapper<Product>> productWrapperCaptor;
+    private final AtomicReference<Product> insertedProduct = new AtomicReference<Product>();
 
     @BeforeAll static void initializeLambdaMetadata() {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), Product.class);
+    }
+
+    @BeforeEach void emulateSuccessfulWrites() {
+        lenient().doAnswer(invocation -> {
+            Product product = invocation.getArgument(0);
+            if (product.getId() == null) product.setId(100L);
+            insertedProduct.set(product);
+            return 1;
+        }).when(mapper).insert(any(Product.class));
+        lenient().when(mapper.selectById(100L)).thenAnswer(invocation -> insertedProduct.get());
+        lenient().when(mapper.updateById(any(Product.class))).thenReturn(1);
     }
 
     @Test void createNormalizesCodeAndPersistsEnabledProduct() {
@@ -75,6 +90,18 @@ class ProductServiceImplTest {
         service.update(7L, request);
         assertEquals("APPLE-01", product.getCode()); assertEquals("New", product.getName()); assertEquals(new BigDecimal("2.25"), product.getUnitPrice());
         verify(mapper).updateById(product);
+    }
+
+    @Test void updateReturnsReloadedDatabaseTimestamps() {
+        Product existing = product(7L, "APPLE", "Old", BigDecimal.ONE, true);
+        Product refreshed = product(7L, "APPLE", "New", new BigDecimal("2.25"), true);
+        refreshed.setUpdatedAt(LocalDateTime.of(2026, 9, 6, 12, 0));
+        when(mapper.selectById(7L)).thenReturn(existing, refreshed);
+        when(mapper.updateById(any(Product.class))).thenReturn(1);
+        ProductUpdateRequest request = new ProductUpdateRequest();
+        request.setName("New"); request.setUnitPrice(new BigDecimal("2.25"));
+
+        assertEquals(refreshed.getUpdatedAt(), service.update(7L, request).getUpdatedAt());
     }
 
     @Test void setEnabledSoftDisablesWithoutPhysicalDelete() {

@@ -90,6 +90,7 @@ public class OrderServiceImpl implements OrderService {
         changedOrder.setDiscountAmount(quote.getDiscountAmount());
         changedOrder.setPayableAmount(quote.getPayableAmount());
         changedOrder.setUpdatedAt(now);
+        changedOrder.setVersion(order.getVersion());
         int changed = orderMapper.update(changedOrder, new LambdaUpdateWrapper<CustomerOrder>()
                 .eq(CustomerOrder::getId, order.getId()).eq(CustomerOrder::getStatus, OrderStatus.UNPAID));
         if (changed != 1) throw invalidState("Order state changed concurrently");
@@ -143,6 +144,7 @@ public class OrderServiceImpl implements OrderService {
         CustomerOrder update = new CustomerOrder();
         update.setStatus(target);
         update.setUpdatedAt(now);
+        update.setVersion(order.getVersion());
         int changed = orderMapper.update(update, new LambdaUpdateWrapper<CustomerOrder>()
                 .eq(CustomerOrder::getId, order.getId())
                 .eq(CustomerOrder::getStatus, OrderStatus.UNPAID));
