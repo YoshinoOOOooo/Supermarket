@@ -19,22 +19,19 @@ mysql --version
 
 ## 2. 初始化本地数据库
 
-下列命令创建并初始化开发数据库 `supermarket`。命令会提示输入 MySQL 密码，不要把密码写入仓库。
+完整初始化脚本会依次创建 `supermarket` 数据库、全部数据表和演示数据。命令会提示输入 MySQL 密码：
 
 ```powershell
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS supermarket CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-cmd /c "mysql -u root -p supermarket < src\main\resources\db\schema.sql"
-cmd /c "mysql -u root -p supermarket < src\main\resources\db\data.sql"
+cmd /c "mysql -u root -p < src\main\resources\db\init.sql"
 ```
 
-在 Bash、Git Bash 或 CMD 中，后两条也可直接写为：
+在 Bash、Git Bash 或 CMD 中可直接写为：
 
 ```bash
-mysql -u root -p supermarket < src/main/resources/db/schema.sql
-mysql -u root -p supermarket < src/main/resources/db/data.sql
+mysql -u root -p < src/main/resources/db/init.sql
 ```
 
-`schema.sql` 创建商品、促销、订单及订单明细表；`data.sql` 写入苹果（8.00 元/斤）、草莓（13.00 元/斤）、芒果（20.00 元/斤）、草莓 8 折和满 100 减 10。
+`init.sql` 从零完成建库、建表和初始化，写入苹果（8.00 元/斤）、草莓（13.00 元/斤）、芒果（20.00 元/斤）、草莓 8 折和满 100 减 10。脚本可重复执行，但会恢复这些演示基准配置。原 `schema.sql` 和 `data.sql` 继续供自动化测试加载。
 
 ## 3. 配置与启动
 
