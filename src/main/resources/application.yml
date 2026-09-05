@@ -2,7 +2,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/supermarket?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
     username: root
-    password: 20010528ok
+    password: #数据库密码
   sql:
     init:
       mode: never
@@ -11,4 +11,4 @@ app:
   security:
     admin:
       username: admin
-      password: 20010528ok
+      password: #自行设置
