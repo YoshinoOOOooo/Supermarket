@@ -31,11 +31,29 @@ cmd /c "mysql -u root -p < src\main\resources\db\init.sql"
 mysql -u root -p < src/main/resources/db/init.sql
 ```
 
-`init.sql` 从零完成建库、建表和初始化，写入苹果（8.00 元/斤）、草莓（13.00 元/斤）、芒果（20.00 元/斤）、草莓 8 折和满 100 减 10。脚本可重复执行，但会恢复这些演示基准配置。原 `schema.sql` 和 `data.sql` 继续供自动化测试加载。
+`init.sql` 是唯一的生产初始化入口，可从零完成建库、建表和演示数据初始化，写入苹果（8.00 元/斤）、草莓（13.00 元/斤）、芒果（20.00 元/斤）、草莓 8 折和满 100 减 10。重复执行会恢复这些演示基准配置。
 
 ## 3. 配置与启动
 
-开发数据库和管理员账号已经直接配置在 `src/main/resources/application.yml` 中，本机数据库名称为 `supermarket`。本地演示无需再设置环境变量；如需更换账号或密码，请直接修改该文件。
+应用不会在源码中保存密码。启动前必须提供数据库密码和管理员密码；数据库地址、数据库用户名、管理员用户名可使用默认值，也可覆盖。PowerShell 示例：
+
+```powershell
+$env:DB_URL = "jdbc:mysql://localhost:3306/supermarket?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+$env:DB_USERNAME = "root"
+$env:DB_PASSWORD = Read-Host "MySQL password"
+$env:ADMIN_USERNAME = "admin"
+$env:ADMIN_PASSWORD = Read-Host "Administrator password"
+```
+
+Git Bash 示例（请把占位内容替换为本机秘密，不要提交到 Git）：
+
+```bash
+export DB_URL='jdbc:mysql://localhost:3306/supermarket?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true'
+export DB_USERNAME='root'
+export DB_PASSWORD='<your-db-password>'
+export ADMIN_USERNAME='admin'
+export ADMIN_PASSWORD='<your-admin-password>'
+```
 
 运行快速测试和启动应用：
 
@@ -85,7 +103,7 @@ $strawberryDiscount = $promotions | Where-Object { $_.type -eq "PRODUCT_DISCOUNT
 $thresholdReduction = $promotions | Where-Object { $_.type -eq "ORDER_THRESHOLD_REDUCTION" -and $_.name -eq "Spend 100 Save 10" } | Select-Object -First 1
 
 if ($null -eq $strawberryDiscount -or $null -eq $thresholdReduction) {
-    throw "未找到 data.sql 初始化的两条促销，请重新执行初始化 SQL"
+    throw "未找到 init.sql 初始化的两条促销，请重新执行初始化 SQL"
 }
 
 $strawberryDiscountId = $strawberryDiscount.id
@@ -94,7 +112,7 @@ $thresholdReductionId = $thresholdReduction.id
 
 ### A–D 试算
 
-`data.sql` 默认启用两项促销。下面的命令在每个场景前都通过真实管理接口明确设置两条规则的状态，因此从默认状态开始按顺序整段执行即可复现四个题目结果。
+`init.sql` 默认启用两项促销。下面的命令在每个场景前都通过真实管理接口明确设置两条规则的状态，因此从默认状态开始按顺序整段执行即可复现四个题目结果。
 
 ```powershell
 $scenarioA = '{"items":[{"productCode":"APPLE","quantity":2},{"productCode":"STRAWBERRY","quantity":3}]}'
@@ -180,14 +198,21 @@ $env:TEST_DB_PASSWORD = Read-Host "MySQL test password"
 mvn -DexcludedGroups= -Dgroups=mysql -Dtest=PricingScenariosAcceptanceTest test
 ```
 
-测试在执行场景前加载 `db/schema.sql` 和 `db/data.sql`，断言 A=`55.00`、B=`75.00`、C=`67.20`、D=`102.00`，并验证订单从 `UNPAID` 转为 `COMPLETED`。
+测试在执行场景前加载仅位于测试资源中的 `db/test-schema.sql` 和 `db/test-data.sql`，断言 A=`55.00`、B=`75.00`、C=`67.20`、D=`102.00`，并验证订单从 `UNPAID` 转为 `COMPLETED`。测试脚本不会创建或选择数据库。
 
 ## 6. 安全与本地配置
 
-- 当前 `application.yml` 按本地演示要求保存了明文数据库与管理员凭据，不应将当前仓库直接发布为公开仓库。
-- 若后续需要部署到其他电脑或对外提供服务，应恢复为环境变量或使用不提交到 Git 的 `application-local.yml`。
-- `data.sql` 是可重复执行的演示基准重置脚本：会恢复三种水果的名称、价格和启用状态，并补齐默认促销；请勿对需要保留人工改价的生产数据重复执行。
-- 全新本地库可重新执行 `schema.sql` 和 `data.sql`。旧版库请先备份，再仅执行一次 `db/migration-add-promotion-code.sql`；迁移脚本按主键生成稳定占位 code，种子规则只按 code 识别，禁止依赖可修改的 name。
+- `DB_PASSWORD` 与 `ADMIN_PASSWORD` 是必填环境变量；不要把真实凭据写入源码、README 或命令历史。
+- 单个订单请求最多 100 个明细，每项数量范围为 0–100000；后台订单分页每页最多 100 条。
+- 促销的 `startTime`、`endTime` 使用本地日期时间格式，例如 `2026-09-06T09:30:00`，不要附加 UTC 标记 `Z`；`endTime: null` 表示无结束时间。
+- 对已有数据库升级时，先备份并分别执行 `SHOW COLUMNS FROM promotion LIKE 'version';` 与 `SHOW COLUMNS FROM customer_order LIKE 'version';`。仅当列不存在时，各执行一次：
+
+```sql
+ALTER TABLE promotion ADD COLUMN version INT NOT NULL DEFAULT 0;
+ALTER TABLE customer_order ADD COLUMN version INT NOT NULL DEFAULT 0;
+```
+
+- `init.sql` 用于全新安装或主动恢复演示基准数据，不要在需要保留人工配置的数据库上重复执行。
 - 新建促销时 `code` 可省略；系统会生成 `PROMO_` 加 UUID 的稳定标识。显式填写时会转为大写并把分隔符规范化为下划线，长度不能超过 64，且必须至少包含字母或数字。
 - 正式下单会在事务中重新计价，客户端不能提交单价或总价。
 - 当前项目不包含库存、支付网关、退款、配送、顾客账号或多管理员管理。
