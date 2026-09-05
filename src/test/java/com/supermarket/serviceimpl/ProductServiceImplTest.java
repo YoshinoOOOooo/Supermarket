@@ -76,7 +76,7 @@ class ProductServiceImplTest {
         ProductCreateRequest request = new ProductCreateRequest();
         request.setCode(" apple-01 "); request.setName("Apple"); request.setUnitPrice(BigDecimal.ONE);
         BusinessException error = assertThrows(BusinessException.class, () -> service.create(request));
-        assertEquals(ErrorCode.INVALID_REQUEST, error.getErrorCode());
+        assertEquals(ErrorCode.RESOURCE_CONFLICT, error.getErrorCode());
         verify(mapper).selectCount(productWrapperCaptor.capture());
         assertTrue(productWrapperCaptor.getValue().getSqlSegment().contains("code"));
         assertTrue(productWrapperCaptor.getValue().getParamNameValuePairs().containsValue("APPLE-01"));

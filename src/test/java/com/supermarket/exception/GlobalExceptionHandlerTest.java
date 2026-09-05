@@ -15,11 +15,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.validation.Valid;
 import org.springframework.dao.DataIntegrityViolationException;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.core.read.ListAppender;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import org.slf4j.LoggerFactory;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GlobalExceptionHandlerTest {
     private MockMvc mockMvc;
@@ -61,12 +67,19 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void unexpectedExceptionReturnsSanitizedInternalError() throws Exception {
+        Logger logger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
         mockMvc.perform(post("/test/unexpected"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("INTERNAL_ERROR"))
                 .andExpect(jsonPath("$.message").value("Internal server error"))
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("database password"))));
+        assertTrue(appender.list.stream().anyMatch(event -> event.getLevel() == Level.ERROR
+                && event.getThrowableProxy() != null));
+        logger.detachAppender(appender);
     }
 
     @Test void malformedJsonReturnsBadRequest() throws Exception {

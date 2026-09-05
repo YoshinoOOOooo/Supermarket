@@ -30,7 +30,7 @@ public class ProductServiceImpl implements ProductService {
         String code = request.getCode().trim().toUpperCase(Locale.ROOT);
 
         if (mapper.selectCount(new LambdaQueryWrapper<Product>().eq(Product::getCode, code)) > 0) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product code already exists");
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Product code already exists");
         }
         Product product = new Product();
         product.setCode(code);
