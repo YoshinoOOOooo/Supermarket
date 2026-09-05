@@ -1,6 +1,8 @@
 package com.supermarket.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.supermarket.enums.PromotionType;
@@ -21,20 +23,26 @@ public class Promotion {
     /** 促销类型。 */
     private PromotionType type;
     /** 适用商品主键；订单级满减规则不使用该字段。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Long productId;
     /** 商品折扣率，例如 0.80 表示八折。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private BigDecimal discountRate;
     /** 触发订单满减的金额门槛，单位为元。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private BigDecimal thresholdAmount;
     /** 达到门槛后减免的金额，单位为元。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private BigDecimal reductionAmount;
     /** 规则执行优先级，数值越小越先执行。 */
     private Integer priority;
     /** 促销规则是否启用。 */
     private Boolean enabled;
     /** 促销生效时间；为空表示不限制开始时间。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDateTime startTime;
     /** 促销失效时间；为空表示不限制结束时间。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDateTime endTime;
     /** 促销记录创建时间。 */
     private LocalDateTime createdAt;

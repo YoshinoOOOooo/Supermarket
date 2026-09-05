@@ -3,6 +3,7 @@ package com.supermarket.serviceimpl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.supermarket.dto.PromotionCreateRequest;
 import com.supermarket.dto.PromotionUpdateRequest;
 import com.supermarket.entity.Promotion;
@@ -13,6 +14,7 @@ import com.supermarket.mapper.PromotionMapper;
 import com.supermarket.mapper.ProductMapper;
 import com.supermarket.mapper.PromotionMutexMapper;
 import com.supermarket.entity.Product;
+import com.supermarket.vo.PromotionView;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -126,6 +128,38 @@ class PromotionServiceImplTest {
         verify(mapper).selectList(promotionWrapperCaptor.capture());
         assertWrapper(promotionWrapperCaptor.getValue(), true, true);
     }
+    @Test void nullablePromotionFieldsAreWrittenWhenTheirValueIsNull() {
+        assertAlwaysUpdate("productId");
+        assertAlwaysUpdate("discountRate");
+        assertAlwaysUpdate("thresholdAmount");
+        assertAlwaysUpdate("reductionAmount");
+        assertAlwaysUpdate("startTime");
+        assertAlwaysUpdate("endTime");
+    }
+    @Test void updateReturnsTheReloadedDatabaseState() {
+        Promotion existing = promotion(5L, true);
+        existing.setEndTime(LocalDateTime.of(2026, 9, 6, 10, 0));
+        existing.setUpdatedAt(LocalDateTime.of(2026, 9, 6, 9, 0));
+
+        Promotion refreshed = promotion(5L, true);
+        refreshed.setEndTime(null);
+        refreshed.setUpdatedAt(LocalDateTime.of(2026, 9, 6, 11, 0));
+        when(mapper.selectById(5L)).thenReturn(existing, refreshed);
+        when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
+
+        PromotionUpdateRequest request = new PromotionUpdateRequest();
+        request.setName("Changed");
+        request.setType(PromotionType.PRODUCT_DISCOUNT);
+        request.setProductId(1L);
+        request.setDiscountRate(new BigDecimal("0.75"));
+        request.setPriority(2);
+        request.setEndTime(null);
+
+        PromotionView result = service.update(5L, request);
+
+        assertNull(result.getEndTime());
+        assertEquals(LocalDateTime.of(2026, 9, 6, 11, 0), result.getUpdatedAt());
+    }
     @Test void enablingARuleRechecksConflicts() {
         Promotion existing = promotion(5L, false); when(mapper.selectById(5L)).thenReturn(existing);
         when(mapper.selectList(any())).thenReturn(Collections.singletonList(new Promotion()));
@@ -197,6 +231,10 @@ class PromotionServiceImplTest {
     }
     private PromotionCreateRequest base(PromotionType type) { PromotionCreateRequest r = new PromotionCreateRequest(); r.setName("Rule"); r.setType(type); r.setPriority(1); r.setEnabled(true); return r; }
     private Promotion promotion(Long id, boolean enabled) { Promotion p = new Promotion(); p.setId(id); p.setName("Rule"); p.setType(PromotionType.PRODUCT_DISCOUNT); p.setProductId(1L); p.setDiscountRate(new BigDecimal("0.80")); p.setPriority(1); p.setEnabled(enabled); return p; }
+    private void assertAlwaysUpdate(String property) {
+        assertEquals(FieldStrategy.ALWAYS, TableInfoHelper.getTableInfo(Promotion.class).getFieldList().stream()
+                .filter(field -> property.equals(field.getProperty())).findFirst().get().getUpdateStrategy());
+    }
     private void assertWrapper(LambdaQueryWrapper<Promotion> wrapper, boolean excludesSelf, boolean productScoped) {
         String sql = wrapper.getSqlSegment();
         assertTrue(sql.contains("enabled"));

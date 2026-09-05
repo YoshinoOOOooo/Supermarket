@@ -65,7 +65,7 @@ public class PromotionServiceImpl implements PromotionService {
                 lockConflictDomain(p); validateNoConflict(p);
             }
             mapper.updateById(p);
-            return view(p); }
+            return view(required(id)); }
         catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }
     /** 启用或停用促销；启用时执行并发安全的冲突校验。 */
@@ -79,7 +79,7 @@ public class PromotionServiceImpl implements PromotionService {
                 validateNoConflict(p);
             }
             mapper.updateById(p);
-            return view(p); }
+            return view(required(id)); }
         catch (DataIntegrityViolationException | CannotAcquireLockException ex) { throw conflict(); }
     }
     /** 根据主键查询促销。 */
