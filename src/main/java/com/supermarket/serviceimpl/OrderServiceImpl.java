@@ -72,6 +72,34 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    public OrderView update(UUID orderNo, CheckoutRequest request) {
+        requirePositiveQuantity(request);
+        CustomerOrder order = required(orderNo);
+        if (order.getStatus() != OrderStatus.UNPAID) {
+            throw invalidState("Only unpaid orders can be modified");
+        }
+        PricingQuote quote = pricingQuoteService.quote(request);
+        LocalDateTime now = LocalDateTime.now();
+        CustomerOrder changedOrder = new CustomerOrder();
+        changedOrder.setOriginalAmount(quote.getOriginalAmount());
+        changedOrder.setDiscountAmount(quote.getDiscountAmount());
+        changedOrder.setPayableAmount(quote.getPayableAmount());
+        changedOrder.setUpdatedAt(now);
+        int changed = orderMapper.update(changedOrder, new LambdaUpdateWrapper<CustomerOrder>()
+                .eq(CustomerOrder::getId, order.getId()).eq(CustomerOrder::getStatus, OrderStatus.UNPAID));
+        if (changed != 1) throw invalidState("Order state changed concurrently");
+        itemMapper.delete(new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
+        List<OrderItem> replacement = new ArrayList<OrderItem>();
+        for (PricingQuote.Line line : quote.getLines()) {
+            OrderItem item = snapshot(order.getId(), line); itemMapper.insert(item); replacement.add(item);
+        }
+        order.setOriginalAmount(quote.getOriginalAmount()); order.setDiscountAmount(quote.getDiscountAmount());
+        order.setPayableAmount(quote.getPayableAmount()); order.setUpdatedAt(now);
+        return view(order, replacement);
+    }
+
+    @Override
+    @Transactional
     public OrderView complete(UUID orderNo) {
         return transition(orderNo, OrderStatus.COMPLETED);
     }
@@ -103,7 +131,11 @@ public class OrderServiceImpl implements OrderService {
         int changed = orderMapper.update(update, new LambdaUpdateWrapper<CustomerOrder>()
                 .eq(CustomerOrder::getId, order.getId())
                 .eq(CustomerOrder::getStatus, OrderStatus.UNPAID));
-        if (changed != 1) throw invalidState("Order state changed concurrently");
+        if (changed != 1) {
+            CustomerOrder latest = required(orderNo);
+            if (latest.getStatus() == target) return view(latest, snapshots(latest.getId()));
+            throw invalidState("Order state changed concurrently");
+        }
         order.setStatus(target);
         order.setUpdatedAt(now);
         return view(order, snapshots(order.getId()));

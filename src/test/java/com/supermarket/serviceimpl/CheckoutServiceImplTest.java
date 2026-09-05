@@ -157,6 +157,22 @@ class CheckoutServiceImplTest {
         assertMoney("102.00", result.getPayableAmount());
     }
 
+    @Test void rejectsDuplicateEffectivePromotionRules() {
+        stubProducts(strawberry());
+        when(promotionMapper.selectList(any())).thenReturn(Arrays.asList(
+                discount(2L, "0.80", true, null, null), discount(2L, "0.70", true, null, null)));
+        BusinessException productConflict = assertThrows(BusinessException.class,
+                () -> service.calculate(request(item("STRAWBERRY", 1))));
+        assertEquals(ErrorCode.PROMOTION_CONFLICT, productConflict.getErrorCode());
+
+        when(promotionMapper.selectList(any())).thenReturn(Arrays.asList(
+                threshold("100.00", "10.00", true, null, null),
+                threshold("200.00", "20.00", true, null, null)));
+        BusinessException thresholdConflict = assertThrows(BusinessException.class,
+                () -> service.calculate(request(item("STRAWBERRY", 1))));
+        assertEquals(ErrorCode.PROMOTION_CONFLICT, thresholdConflict.getErrorCode());
+    }
+
     private void stubProducts(Product... products) {
         when(productMapper.selectList(any())).thenReturn(Arrays.asList(products));
         when(promotionMapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());

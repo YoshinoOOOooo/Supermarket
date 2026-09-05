@@ -31,6 +31,14 @@ CREATE TABLE IF NOT EXISTS promotion (
     CONSTRAINT fk_promotion_product FOREIGN KEY (product_id) REFERENCES product (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS promotion_mutex (
+    mutex_key VARCHAR(64) NOT NULL,
+    PRIMARY KEY (mutex_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO promotion_mutex (mutex_key) VALUES ('GLOBAL_THRESHOLD')
+ON DUPLICATE KEY UPDATE mutex_key = VALUES(mutex_key);
+
 CREATE TABLE IF NOT EXISTS customer_order (
     id BIGINT NOT NULL AUTO_INCREMENT,
     order_no CHAR(36) NOT NULL,

@@ -3,6 +3,12 @@ package com.supermarket.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.validation.BindException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -18,9 +24,20 @@ public class GlobalExceptionHandler {
         return response(ErrorCode.INVALID_REQUEST, message, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class, BindException.class})
+    public ResponseEntity<ApiError> handleMalformedRequest(Exception exception) {
+        return response(ErrorCode.INVALID_REQUEST, "Invalid request", HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiError> handleBusiness(BusinessException exception) {
         return response(exception.getErrorCode(), exception.getMessage(), statusFor(exception.getErrorCode()));
+    }
+
+    @ExceptionHandler({DataIntegrityViolationException.class, CannotAcquireLockException.class})
+    public ResponseEntity<ApiError> handleDatabaseConflict(Exception exception) {
+        return response(ErrorCode.PROMOTION_CONFLICT, "Concurrent data conflict", HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(Exception.class)

@@ -156,6 +156,34 @@ class OrderServiceImplTest {
         verify(items, never()).selectList(any());
     }
 
+    @Test void concurrentSameTargetIsIdempotentAfterReread() {
+        UUID number = UUID.randomUUID();
+        when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.UNPAID),
+                order(9L, number, OrderStatus.COMPLETED));
+        when(orders.update(any(CustomerOrder.class), anyOrderWrapper())).thenReturn(0);
+        when(items.selectList(any())).thenReturn(Collections.singletonList(snapshot(9L)));
+        assertEquals(OrderStatus.COMPLETED, service.complete(number).getStatus());
+    }
+
+    @Test void updateRepricesAndReplacesSnapshotsOnlyWhileUnpaid() {
+        UUID number = UUID.randomUUID(); CheckoutRequest request = request(item("APPLE", 3));
+        when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.UNPAID));
+        when(pricing.quote(request)).thenReturn(quote());
+        when(orders.update(any(CustomerOrder.class), anyOrderWrapper())).thenReturn(1);
+        when(items.delete(any())).thenReturn(1);
+        OrderView updated = service.update(number, request);
+        assertMoney("17.00", updated.getPayableAmount());
+        verify(items).delete(any()); verify(items).insert(any(OrderItem.class));
+    }
+
+    @Test void updateRejectsTerminalOrder() {
+        UUID number = UUID.randomUUID();
+        when(orders.selectOne(any())).thenReturn(order(9L, number, OrderStatus.CANCELLED));
+        assertEquals(ErrorCode.INVALID_ORDER_STATE, assertThrows(BusinessException.class,
+                () -> service.update(number, request(item("APPLE", 1)))).getErrorCode());
+        verifyNoInteractions(pricing);
+    }
+
     private PricingQuote quote() {
         return new PricingQuote(Collections.singletonList(new PricingQuote.Line(
                 7L, "APPLE", "Apple at checkout", 2, money("10.00"), money("20.00"),

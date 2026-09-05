@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -90,11 +91,16 @@ class PricingScenariosAcceptanceTest {
         JsonNode order = objectMapper.readTree(created.getResponse().getContentAsString());
         String orderNo = order.get("orderNo").asText();
 
+        mockMvc.perform(put("/api/orders/{orderNo}", orderNo)
+                        .contentType("application/json").content(request(item("APPLE", 1))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status", is("UNPAID")))
+                .andExpect(jsonPath("$.payableAmount", is("8.00")));
+
         mockMvc.perform(get("/api/orders/{orderNo}", orderNo))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.orderNo", is(orderNo)))
                 .andExpect(jsonPath("$.status", is("UNPAID")))
-                .andExpect(jsonPath("$.payableAmount", is("102.00")));
+                .andExpect(jsonPath("$.payableAmount", is("8.00")));
 
         mockMvc.perform(post("/api/admin/orders/{orderNo}/complete", orderNo)
                         .header("Authorization", basic(ADMIN_USERNAME, ADMIN_PASSWORD)))

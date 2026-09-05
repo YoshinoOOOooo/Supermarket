@@ -138,13 +138,20 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
             codesById.put(entry.getValue().getId(), entry.getKey());
         }
         Map<String, BigDecimal> rates = new HashMap<String, BigDecimal>();
+        boolean thresholdSeen = false;
         List<PricingRule> rules = new ArrayList<PricingRule>();
         for (Promotion promotion : promotions) {
             if (promotion.getType() == PromotionType.PRODUCT_DISCOUNT) {
                 String code = codesById.get(promotion.getProductId());
-                if (code != null && promotion.getDiscountRate() != null) rates.put(code, promotion.getDiscountRate());
+                if (code != null && promotion.getDiscountRate() != null
+                        && rates.put(code, promotion.getDiscountRate()) != null) {
+                    throw new BusinessException(ErrorCode.PROMOTION_CONFLICT, "Multiple active product discounts");
+                }
             } else if (promotion.getType() == PromotionType.ORDER_THRESHOLD_REDUCTION
                     && promotion.getThresholdAmount() != null && promotion.getReductionAmount() != null) {
+                if (thresholdSeen) throw new BusinessException(ErrorCode.PROMOTION_CONFLICT,
+                        "Multiple active threshold reductions");
+                thresholdSeen = true;
                 rules.add(new OrderThresholdReductionRule(
                         promotion.getThresholdAmount(), promotion.getReductionAmount()));
             }

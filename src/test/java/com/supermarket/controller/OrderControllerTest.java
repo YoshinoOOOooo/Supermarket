@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,6 +67,15 @@ class OrderControllerTest {
         mvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content("{\"items\":[]}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
         verify(service, never()).create(any());
+    }
+
+    @Test void publicCanModifyAnUnpaidOrder() throws Exception {
+        UUID number = UUID.randomUUID();
+        when(service.update(eq(number), any())).thenReturn(view(number, OrderStatus.UNPAID));
+        mvc.perform(put("/api/orders/{orderNo}", number).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"productCode\":\"APPLE\",\"quantity\":3}]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("UNPAID"));
+        verify(service).update(eq(number), any());
     }
 
     @Test

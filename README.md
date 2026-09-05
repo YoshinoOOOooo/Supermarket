@@ -144,6 +144,9 @@ $orderNo = $created.orderNo
 $created.status # UNPAID
 
 Invoke-RestMethod -Method Get -Uri "$base/api/orders/$orderNo"
+# 仅 UNPAID 可修改；服务端会按当前商品与促销重新计价并替换快照
+$changed = '{"items":[{"productCode":"APPLE","quantity":3}]}'
+Invoke-RestMethod -Method Put -Uri "$base/api/orders/$orderNo" -ContentType "application/json" -Body $changed
 Invoke-RestMethod -Method Post -Uri "$base/api/admin/orders/$orderNo/complete" -Headers $headers
 ```
 
@@ -193,6 +196,7 @@ mvn -DexcludedGroups= -Dgroups=mysql -Dtest=PricingScenariosAcceptanceTest test
 ## 6. 安全与本地配置
 
 - 不要提交真实数据库密码、管理员密码、`.env` 或 `application-local.yml`。
-- 默认管理员密码 `change-me` 仅方便本地首次启动；实际运行必须通过 `ADMIN_PASSWORD` 覆盖。
+- 应用不提供管理员密码默认值；未设置 `ADMIN_PASSWORD` 时会拒绝启动，避免以已知凭据暴露管理接口。
+- `data.sql` 是可重复执行的演示基准重置脚本：会恢复三种水果的名称、价格和启用状态，并补齐默认促销；请勿对需要保留人工改价的生产数据重复执行。
 - 正式下单会在事务中重新计价，客户端不能提交单价或总价。
 - 当前项目不包含库存、支付网关、退款、配送、顾客账号或多管理员管理。

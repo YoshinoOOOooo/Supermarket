@@ -10,6 +10,9 @@ import com.supermarket.enums.PromotionType;
 import com.supermarket.exception.BusinessException;
 import com.supermarket.exception.ErrorCode;
 import com.supermarket.mapper.PromotionMapper;
+import com.supermarket.mapper.ProductMapper;
+import com.supermarket.mapper.PromotionMutexMapper;
+import com.supermarket.entity.Product;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -119,6 +122,23 @@ class PromotionServiceImplTest {
         when(mapper.selectList(any())).thenReturn(Collections.singletonList(new Promotion()));
         assertThrows(BusinessException.class, () -> service.setEnabled(5L, true));
         verify(mapper, never()).updateById(any());
+    }
+    @Test void locksProductBeforeCheckingDiscountConflict() {
+        ProductMapper products = mock(ProductMapper.class); PromotionMutexMapper mutex = mock(PromotionMutexMapper.class);
+        PromotionServiceImpl lockingService = new PromotionServiceImpl(mapper, products, mutex);
+        when(products.selectByIdForUpdate(1L)).thenReturn(new Product());
+        when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
+        lockingService.create(discount());
+        org.mockito.InOrder order = inOrder(products, mapper);
+        order.verify(products).selectByIdForUpdate(1L); order.verify(mapper).selectList(any()); order.verify(mapper).insert(any());
+    }
+    @Test void locksGlobalMutexBeforeCheckingThresholdConflict() {
+        ProductMapper products = mock(ProductMapper.class); PromotionMutexMapper mutex = mock(PromotionMutexMapper.class);
+        PromotionServiceImpl lockingService = new PromotionServiceImpl(mapper, products, mutex);
+        when(mapper.selectList(any())).thenReturn(Collections.<Promotion>emptyList());
+        lockingService.create(threshold());
+        org.mockito.InOrder order = inOrder(mutex, mapper);
+        order.verify(mutex).lockGlobalThreshold(); order.verify(mapper).selectList(any()); order.verify(mapper).insert(any());
     }
     private PromotionCreateRequest discount() { PromotionCreateRequest r = base(PromotionType.PRODUCT_DISCOUNT); r.setProductId(1L); r.setDiscountRate(new BigDecimal("0.80")); return r; }
     private PromotionCreateRequest threshold() { PromotionCreateRequest r = base(PromotionType.ORDER_THRESHOLD_REDUCTION); r.setThresholdAmount(BigDecimal.TEN); r.setReductionAmount(BigDecimal.ONE); return r; }

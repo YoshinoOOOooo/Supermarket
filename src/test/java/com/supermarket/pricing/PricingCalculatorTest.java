@@ -100,6 +100,24 @@ class PricingCalculatorTest {
         assertThrows(UnsupportedOperationException.class, () -> result.getLineResults().clear());
     }
 
+    @Test
+    void sumsAlreadyRoundedLinesAndUsesThatSubtotalForThreshold() {
+        Map<String, BigDecimal> rates = new HashMap<String, BigDecimal>();
+        rates.put("A", new BigDecimal("0.50"));
+        rates.put("B", new BigDecimal("0.50"));
+        PricingResult result = new PricingCalculator().calculate(
+                items(item("A", 1, "99.985"), item("B", 1, "99.985")),
+                Arrays.<PricingRule>asList(new ProductDiscountRule(rates),
+                        new OrderThresholdReductionRule(new BigDecimal("100.00"), new BigDecimal("10.00"))));
+
+        assertMoney("50.00", result.getLineResults().get(0).getPayableAmount());
+        assertMoney("50.00", result.getLineResults().get(1).getPayableAmount());
+        assertMoney("100.00", result.getOriginalAmount().subtract(
+                result.getLineResults().get(0).getDiscountAmount()).subtract(
+                result.getLineResults().get(1).getDiscountAmount()));
+        assertMoney("90.00", result.getPayableAmount());
+    }
+
     private BigDecimal calculate(List<PricingItem> items) {
         return new PricingCalculator().calculate(items, Collections.<PricingRule>emptyList()).getPayableAmount();
     }

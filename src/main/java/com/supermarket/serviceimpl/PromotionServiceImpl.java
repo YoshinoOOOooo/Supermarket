@@ -8,6 +8,8 @@ import com.supermarket.enums.PromotionType;
 import com.supermarket.exception.BusinessException;
 import com.supermarket.exception.ErrorCode;
 import com.supermarket.mapper.PromotionMapper;
+import com.supermarket.mapper.ProductMapper;
+import com.supermarket.mapper.PromotionMutexMapper;
 import com.supermarket.service.PromotionService;
 import com.supermarket.vo.PromotionView;
 import org.springframework.stereotype.Service;
@@ -19,18 +21,24 @@ import java.util.stream.Collectors;
 @Service
 public class PromotionServiceImpl implements PromotionService {
     private final PromotionMapper mapper;
-    public PromotionServiceImpl(PromotionMapper mapper) { this.mapper = mapper; }
+    private final ProductMapper productMapper;
+    private final PromotionMutexMapper mutexMapper;
+    public PromotionServiceImpl(PromotionMapper mapper) { this(mapper, null, null); }
+    @org.springframework.beans.factory.annotation.Autowired
+    public PromotionServiceImpl(PromotionMapper mapper, ProductMapper productMapper, PromotionMutexMapper mutexMapper) {
+        this.mapper = mapper; this.productMapper = productMapper; this.mutexMapper = mutexMapper;
+    }
 
     @Override @Transactional public PromotionView create(PromotionCreateRequest r) {
         Promotion p = new Promotion(); copy(p, r.getName(), r.getType(), r.getProductId(), r.getDiscountRate(), r.getThresholdAmount(), r.getReductionAmount(), r.getPriority(), r.getStartTime(), r.getEndTime());
-        p.setEnabled(r.getEnabled() == null || r.getEnabled()); validate(p); if (p.getEnabled()) validateNoConflict(p); mapper.insert(p); return view(p);
+        p.setEnabled(r.getEnabled() == null || r.getEnabled()); validate(p); if (p.getEnabled()) { lockConflictDomain(p); validateNoConflict(p); } mapper.insert(p); return view(p);
     }
     @Override @Transactional public PromotionView update(Long id, PromotionUpdateRequest r) {
         Promotion p = required(id); copy(p, r.getName(), r.getType(), r.getProductId(), r.getDiscountRate(), r.getThresholdAmount(), r.getReductionAmount(), r.getPriority(), r.getStartTime(), r.getEndTime());
-        validate(p); if (Boolean.TRUE.equals(p.getEnabled())) validateNoConflict(p); mapper.updateById(p); return view(p);
+        validate(p); if (Boolean.TRUE.equals(p.getEnabled())) { lockConflictDomain(p); validateNoConflict(p); } mapper.updateById(p); return view(p);
     }
     @Override @Transactional public PromotionView setEnabled(Long id, boolean enabled) {
-        Promotion p = required(id); p.setEnabled(enabled); validate(p); if (enabled) validateNoConflict(p); mapper.updateById(p); return view(p);
+        Promotion p = required(id); p.setEnabled(enabled); validate(p); if (enabled) { lockConflictDomain(p); validateNoConflict(p); } mapper.updateById(p); return view(p);
     }
     @Override public PromotionView find(Long id) { return view(required(id)); }
     @Override public List<PromotionView> list() { return mapper.selectList(null).stream().map(this::view).collect(Collectors.toList()); }
@@ -52,6 +60,13 @@ public class PromotionServiceImpl implements PromotionService {
         if (p.getEndTime() != null) q.and(w -> w.isNull(Promotion::getStartTime).or().lt(Promotion::getStartTime, p.getEndTime()));
         if (p.getStartTime() != null) q.and(w -> w.isNull(Promotion::getEndTime).or().gt(Promotion::getEndTime, p.getStartTime()));
         if (!mapper.selectList(q).isEmpty()) throw new BusinessException(ErrorCode.PROMOTION_CONFLICT, "Promotion time range conflicts with an active rule");
+    }
+    private void lockConflictDomain(Promotion p) {
+        if (p.getType() == PromotionType.PRODUCT_DISCOUNT) {
+            if (productMapper != null && productMapper.selectByIdForUpdate(p.getProductId()) == null) invalid("Product not found");
+        } else if (mutexMapper != null) {
+            mutexMapper.lockGlobalThreshold();
+        }
     }
     private void copy(Promotion p, String name, PromotionType type, Long productId, BigDecimal rate, BigDecimal threshold, BigDecimal reduction, Integer priority, java.time.LocalDateTime start, java.time.LocalDateTime end) {
         p.setName(name); p.setType(type); p.setProductId(productId); p.setDiscountRate(rate); p.setThresholdAmount(threshold); p.setReductionAmount(reduction); p.setPriority(priority); p.setStartTime(start); p.setEndTime(end);

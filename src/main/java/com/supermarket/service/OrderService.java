@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public interface OrderService {
     OrderView create(CheckoutRequest request);
+    OrderView update(UUID orderNo, CheckoutRequest request);
     OrderView findByOrderNo(UUID orderNo);
     OrderView complete(UUID orderNo);
     OrderView cancel(UUID orderNo);

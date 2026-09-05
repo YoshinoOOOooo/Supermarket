@@ -10,10 +10,13 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.validation.Valid;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -65,6 +68,20 @@ class GlobalExceptionHandlerTest {
                         org.hamcrest.Matchers.containsString("database password"))));
     }
 
+    @Test void malformedJsonReturnsBadRequest() throws Exception {
+        mockMvc.perform(post("/test/checkout").contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test void invalidPathAndQueryTypesReturnBadRequest() throws Exception {
+        mockMvc.perform(get("/test/number/not-a-number")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        mockMvc.perform(get("/test/query").param("enabled", "perhaps")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        mockMvc.perform(get("/test/required")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
     @RestController
     @Validated
     static class TestController {
@@ -86,5 +103,8 @@ class GlobalExceptionHandlerTest {
         void unexpected() {
             throw new IllegalStateException("database password leaked");
         }
+        @org.springframework.web.bind.annotation.GetMapping("/test/number/{id}") void number(@PathVariable Long id) {}
+        @org.springframework.web.bind.annotation.GetMapping("/test/query") void query(@RequestParam Boolean enabled) {}
+        @org.springframework.web.bind.annotation.GetMapping("/test/required") void required(@RequestParam String value) {}
     }
 }

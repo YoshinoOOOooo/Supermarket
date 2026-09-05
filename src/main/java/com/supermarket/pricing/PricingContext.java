@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.math.RoundingMode;
 
 public final class PricingContext {
     private final List<PricingItem> items;
@@ -27,13 +28,15 @@ public final class PricingContext {
     }
 
     public void addLineDiscount(int index, BigDecimal discount) {
-        lineDiscounts.set(index, lineDiscounts.get(index).add(discount));
+        BigDecimal original = money(items.get(index).originalAmount());
+        BigDecimal payable = money(original.subtract(lineDiscounts.get(index)).subtract(discount));
+        lineDiscounts.set(index, original.subtract(payable));
     }
 
     public BigDecimal getOriginalAmount() {
         BigDecimal total = BigDecimal.ZERO;
         for (PricingItem item : items) {
-            total = total.add(item.originalAmount());
+            total = total.add(money(item.originalAmount()));
         }
         return total;
     }
@@ -47,7 +50,11 @@ public final class PricingContext {
     }
 
     public BigDecimal getPayableAmount() {
-        return getOriginalAmount().subtract(getDiscountAmount());
+        BigDecimal subtotal = BigDecimal.ZERO;
+        for (int i = 0; i < items.size(); i++) {
+            subtotal = subtotal.add(money(items.get(i).originalAmount()).subtract(lineDiscounts.get(i)));
+        }
+        return subtotal.subtract(orderDiscount);
     }
 
     public void addOrderDiscount(BigDecimal discount) {
@@ -57,11 +64,15 @@ public final class PricingContext {
     PricingResult toResult() {
         List<PricingResult.LineResult> lines = new ArrayList<PricingResult.LineResult>(items.size());
         for (int i = 0; i < items.size(); i++) {
-            BigDecimal original = items.get(i).originalAmount();
+            BigDecimal original = money(items.get(i).originalAmount());
             BigDecimal discount = lineDiscounts.get(i);
             lines.add(new PricingResult.LineResult(items.get(i), original, discount,
                     original.subtract(discount)));
         }
         return new PricingResult(getOriginalAmount(), getDiscountAmount(), getPayableAmount(), lines);
+    }
+
+    private static BigDecimal money(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP);
     }
 }
