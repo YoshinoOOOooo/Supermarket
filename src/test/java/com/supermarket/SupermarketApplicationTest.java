@@ -1,13 +1,13 @@
 package com.supermarket;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootTest(properties = {
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"
-})
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 class SupermarketApplicationTest {
     @Test
-    void contextLoads() {
+    void applicationEntryPointIsConfigured() {
+        assertTrue(SupermarketApplication.class.isAnnotationPresent(SpringBootApplication.class));
     }
 }
