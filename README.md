@@ -1,0 +1,176 @@
+# 本地超市后端
+
+这是一个基于 Java 8、Spring Boot 2.7、MyBatis-Plus 和 MySQL 8 的本地 REST 后端。它支持商品与促销管理、购物车试算、订单创建与查询，以及管理员确认收款或取消订单。金额统一以两位小数字符串返回；管理员接口使用 HTTP Basic。
+
+## 1. 环境要求
+
+- JDK 8
+- Maven 3.8+
+- MySQL 8.x
+- PowerShell 5.1+（以下环境变量和 API 示例按 PowerShell 编写）
+
+检查工具：
+
+```powershell
+java -version
+mvn -version
+mysql --version
+```
+
+## 2. 初始化本地数据库
+
+下列命令创建并初始化开发数据库 `supermarket`。命令会提示输入 MySQL 密码，不要把密码写入仓库。
+
+```powershell
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS supermarket CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+cmd /c "mysql -u root -p supermarket < src\main\resources\db\schema.sql"
+cmd /c "mysql -u root -p supermarket < src\main\resources\db\data.sql"
+```
+
+在 Bash、Git Bash 或 CMD 中，后两条也可直接写为：
+
+```bash
+mysql -u root -p supermarket < src/main/resources/db/schema.sql
+mysql -u root -p supermarket < src/main/resources/db/data.sql
+```
+
+`schema.sql` 创建商品、促销、订单及订单明细表；`data.sql` 写入苹果（8.00 元/斤）、草莓（13.00 元/斤）、芒果（20.00 元/斤）、草莓 8 折和满 100 减 10。
+
+## 3. 配置与启动
+
+在当前 PowerShell 会话中设置数据库和唯一管理员凭据：
+
+```powershell
+$env:DB_URL = "jdbc:mysql://localhost:3306/supermarket?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+$env:DB_USERNAME = "root"
+$env:DB_PASSWORD = Read-Host "MySQL password"
+$env:ADMIN_USERNAME = "admin"
+$env:ADMIN_PASSWORD = Read-Host "Administrator password"
+```
+
+运行快速测试和启动应用：
+
+```powershell
+mvn test
+mvn spring-boot:run
+```
+
+服务默认地址为 `http://localhost:8080`。可访问：
+
+- Swagger UI：<http://localhost:8080/swagger-ui.html>
+- OpenAPI JSON：<http://localhost:8080/v3/api-docs>
+- 健康检查：<http://localhost:8080/actuator/health>
+
+`/api/checkout/**` 和 `/api/orders/**` 是公开接口；`/api/admin/**` 必须使用上面设置的 Basic 凭据。
+
+## 4. 接口演示
+
+先准备公共变量和管理员认证头：
+
+```powershell
+$base = "http://localhost:8080"
+$pair = "${env:ADMIN_USERNAME}:${env:ADMIN_PASSWORD}"
+$basic = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
+$headers = @{ Authorization = "Basic $basic" }
+```
+
+### 商品维护
+
+查看商品并更新商品（把 `$productId` 替换为列表中的真实 ID）：
+
+```powershell
+Invoke-RestMethod -Method Get -Uri "$base/api/admin/products" -Headers $headers
+$productId = 1
+$product = '{"name":"Fresh Apple","unitPrice":8.50}'
+Invoke-RestMethod -Method Put -Uri "$base/api/admin/products/$productId" -Headers $headers -ContentType "application/json" -Body $product
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/products/$productId/enabled?enabled=true" -Headers $headers
+```
+
+### 促销启用
+
+查看促销，并用实际 ID 启用规则：
+
+```powershell
+Invoke-RestMethod -Method Get -Uri "$base/api/admin/promotions" -Headers $headers
+$promotionId = 1
+Invoke-RestMethod -Method Patch -Uri "$base/api/admin/promotions/$promotionId/enabled?enabled=true" -Headers $headers
+```
+
+### A–D 试算
+
+初始化数据默认启用两项促销。若要严格复现 A、B 的“无促销”结果，应先通过上述管理接口停用草莓折扣和满减规则；C 只启用草莓折扣；D 同时启用两项规则。
+
+```powershell
+$scenarioA = '{"items":[{"productCode":"APPLE","quantity":2},{"productCode":"STRAWBERRY","quantity":3}]}'
+$scenarioB = '{"items":[{"productCode":"APPLE","quantity":2},{"productCode":"STRAWBERRY","quantity":3},{"productCode":"MANGO","quantity":1}]}'
+$scenarioC = $scenarioB
+$scenarioD = '{"items":[{"productCode":"APPLE","quantity":5},{"productCode":"STRAWBERRY","quantity":5},{"productCode":"MANGO","quantity":1}]}'
+
+Invoke-RestMethod -Method Post -Uri "$base/api/checkout/calculate" -ContentType "application/json" -Body $scenarioA # 55.00，无促销
+Invoke-RestMethod -Method Post -Uri "$base/api/checkout/calculate" -ContentType "application/json" -Body $scenarioB # 75.00，无促销
+Invoke-RestMethod -Method Post -Uri "$base/api/checkout/calculate" -ContentType "application/json" -Body $scenarioC # 67.20，仅草莓 8 折
+Invoke-RestMethod -Method Post -Uri "$base/api/checkout/calculate" -ContentType "application/json" -Body $scenarioD # 102.00，两项促销
+```
+
+### 订单生命周期
+
+创建订单、公开查询、管理员确认完成：
+
+```powershell
+$created = Invoke-RestMethod -Method Post -Uri "$base/api/orders" -ContentType "application/json" -Body $scenarioD
+$orderNo = $created.orderNo
+$created.status # UNPAID
+
+Invoke-RestMethod -Method Get -Uri "$base/api/orders/$orderNo"
+Invoke-RestMethod -Method Post -Uri "$base/api/admin/orders/$orderNo/complete" -Headers $headers
+```
+
+取消订单使用另一个仍为 `UNPAID` 的订单：
+
+```powershell
+$toCancel = Invoke-RestMethod -Method Post -Uri "$base/api/orders" -ContentType "application/json" -Body $scenarioA
+Invoke-RestMethod -Method Post -Uri "$base/api/admin/orders/$($toCancel.orderNo)/cancel" -Headers $headers
+```
+
+也可以使用 `curl.exe` 验证 Basic 认证，例如：
+
+```powershell
+curl.exe -u "${env:ADMIN_USERNAME}:${env:ADMIN_PASSWORD}" "$base/api/admin/products"
+```
+
+## 5. 测试
+
+默认测试会通过 Maven Surefire 的 `excludedGroups=mysql` 排除需要本地数据库的验收测试：
+
+```powershell
+mvn clean test
+mvn -DskipTests package
+```
+
+### 可选 MySQL 验收测试
+
+验收测试会删除并重建测试数据，因此只能使用专用 `supermarket_test`，绝不能指向开发库或其他已有数据库。测试本身还会校验 JDBC URL 的 schema 名；不是 `supermarket_test` 时会立即失败。
+
+先创建空测试库：
+
+```powershell
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS supermarket_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+$env:TEST_DB_URL = "jdbc:mysql://localhost:3306/supermarket_test?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+$env:TEST_DB_USERNAME = "root"
+$env:TEST_DB_PASSWORD = Read-Host "MySQL test password"
+```
+
+显式启用 `mysql` 标签：
+
+```powershell
+mvn -DexcludedGroups= -Dgroups=mysql -Dtest=PricingScenariosAcceptanceTest test
+```
+
+测试在执行场景前加载 `db/schema.sql` 和 `db/data.sql`，断言 A=`55.00`、B=`75.00`、C=`67.20`、D=`102.00`，并验证订单从 `UNPAID` 转为 `COMPLETED`。
+
+## 6. 安全与本地配置
+
+- 不要提交真实数据库密码、管理员密码、`.env` 或 `application-local.yml`。
+- 默认管理员密码 `change-me` 仅方便本地首次启动；实际运行必须通过 `ADMIN_PASSWORD` 覆盖。
+- 正式下单会在事务中重新计价，客户端不能提交单价或总价。
+- 当前项目不包含库存、支付网关、退款、配送、顾客账号或多管理员管理。
