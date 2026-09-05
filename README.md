@@ -38,16 +38,7 @@ mysql -u root -p supermarket < src/main/resources/db/data.sql
 
 ## 3. 配置与启动
 
-在当前 PowerShell 会话中设置数据库和唯一管理员凭据：
-
-```powershell
-$env:DB_URL = "jdbc:mysql://localhost:3306/supermarket?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
-$env:DB_USERNAME = "root"
-$env:DB_PASSWORD = Read-Host "MySQL password"
-$env:ADMIN_USERNAME = "admin"
-$env:ADMIN_PASSWORD = Read-Host "Administrator password"
-if ([string]::IsNullOrWhiteSpace($env:ADMIN_PASSWORD)) { throw "ADMIN_PASSWORD must not be blank" }
-```
+开发数据库和管理员账号已经直接配置在 `src/main/resources/application.yml` 中，本机数据库名称为 `supermarket`。本地演示无需再设置环境变量；如需更换账号或密码，请直接修改该文件。
 
 运行快速测试和启动应用：
 
@@ -196,8 +187,8 @@ mvn -DexcludedGroups= -Dgroups=mysql -Dtest=PricingScenariosAcceptanceTest test
 
 ## 6. 安全与本地配置
 
-- 不要提交真实数据库密码、管理员密码、`.env` 或 `application-local.yml`。
-- 应用不提供管理员密码默认值；未设置 `ADMIN_PASSWORD` 时会拒绝启动，避免以已知凭据暴露管理接口。
+- 当前 `application.yml` 按本地演示要求保存了明文数据库与管理员凭据，不应将当前仓库直接发布为公开仓库。
+- 若后续需要部署到其他电脑或对外提供服务，应恢复为环境变量或使用不提交到 Git 的 `application-local.yml`。
 - `data.sql` 是可重复执行的演示基准重置脚本：会恢复三种水果的名称、价格和启用状态，并补齐默认促销；请勿对需要保留人工改价的生产数据重复执行。
 - 全新本地库可重新执行 `schema.sql` 和 `data.sql`。旧版库请先备份，再仅执行一次 `db/migration-add-promotion-code.sql`；迁移脚本按主键生成稳定占位 code，种子规则只按 code 识别，禁止依赖可修改的 name。
 - 新建促销时 `code` 可省略；系统会生成 `PROMO_` 加 UUID 的稳定标识。显式填写时会转为大写并把分隔符规范化为下划线，长度不能超过 64，且必须至少包含字母或数字。
