@@ -8,16 +8,25 @@ import com.supermarket.enums.OrderStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/** 顾客订单主表实体，保存订单状态及金额汇总快照。 */
 @TableName("customer_order")
 public class CustomerOrder {
+    /** 订单数据库主键。 */
     @TableId(type = IdType.AUTO)
     private Long id;
+    /** 对外使用的唯一订单编号。 */
     private String orderNo;
+    /** 订单当前状态。 */
     private OrderStatus status;
+    /** 优惠前商品总金额，单位为元。 */
     private BigDecimal originalAmount;
+    /** 订单全部优惠金额，单位为元。 */
     private BigDecimal discountAmount;
+    /** 顾客最终应付金额，单位为元。 */
     private BigDecimal payableAmount;
+    /** 订单创建时间。 */
     private LocalDateTime createdAt;
+    /** 订单最后更新时间。 */
     private LocalDateTime updatedAt;
 
     public Long getId() { return id; }
