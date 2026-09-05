@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.time.LocalDateTime;
 import java.util.Base64;
 
 import static org.hamcrest.Matchers.is;
@@ -58,13 +59,13 @@ class PricingScenariosAcceptanceTest {
                     "MySQL acceptance tests may only modify the dedicated supermarket_test schema: " + jdbcUrl);
         }
 
-        new ResourceDatabasePopulator(new ClassPathResource("db/schema.sql"))
+        new ResourceDatabasePopulator(new ClassPathResource("db/test-schema.sql"))
                 .execute(dataSource);
         jdbcTemplate.update("DELETE FROM order_item");
         jdbcTemplate.update("DELETE FROM customer_order");
         jdbcTemplate.update("DELETE FROM promotion");
         jdbcTemplate.update("DELETE FROM product");
-        new ResourceDatabasePopulator(new ClassPathResource("db/data.sql"))
+        new ResourceDatabasePopulator(new ClassPathResource("db/test-data.sql"))
                 .execute(dataSource);
     }
 
@@ -107,6 +108,29 @@ class PricingScenariosAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.orderNo", is(orderNo)))
                 .andExpect(jsonPath("$.status", is("COMPLETED")));
+
+        verifiesPromotionEndTimeCanBeCleared();
+    }
+
+    private void verifiesPromotionEndTimeCanBeCleared() throws Exception {
+        Long promotionId = jdbcTemplate.queryForObject(
+                "SELECT id FROM promotion WHERE code = 'STRAWBERRY_80'", Long.class);
+        Long productId = jdbcTemplate.queryForObject(
+                "SELECT id FROM product WHERE code = 'STRAWBERRY'", Long.class);
+        jdbcTemplate.update("UPDATE promotion SET end_time = ? WHERE id = ?",
+                LocalDateTime.of(2026, 12, 31, 23, 59), promotionId);
+
+        String body = "{\"name\":\"Strawberry 80% Discount\","
+                + "\"type\":\"PRODUCT_DISCOUNT\",\"productId\":" + productId + ","
+                + "\"discountRate\":0.80,\"priority\":100,\"startTime\":null,\"endTime\":null}";
+        mockMvc.perform(put("/api/admin/promotions/{id}", promotionId)
+                        .header("Authorization", basic(ADMIN_USERNAME, ADMIN_PASSWORD))
+                        .contentType("application/json").content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endTime").doesNotExist());
+
+        assertTrue(jdbcTemplate.queryForObject(
+                "SELECT end_time IS NULL FROM promotion WHERE id = ?", Boolean.class, promotionId));
     }
 
     private void assertCheckout(String expectedTotal, String... items) throws Exception {
