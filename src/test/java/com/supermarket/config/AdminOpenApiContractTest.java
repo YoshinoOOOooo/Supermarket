@@ -14,7 +14,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.security.admin.password=openapi-test-password")
+@SpringBootTest(properties = {
+        "spring.datasource.password=openapi-test-database-password",
+        "app.security.admin.password=openapi-test-password"
+})
 @AutoConfigureMockMvc
 class AdminOpenApiContractTest {
     @Autowired
