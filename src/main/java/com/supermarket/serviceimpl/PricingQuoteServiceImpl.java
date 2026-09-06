@@ -53,7 +53,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
 
         LocalDateTime now = LocalDateTime.now();
         List<Promotion> promotions = promotionMapper.selectList(activePromotionQuery(now));
-        List<PricingItem> items = new ArrayList<PricingItem>();
+        List<PricingItem> items = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : quantities.entrySet()) {
             Product product = productsByCode.get(entry.getKey());
             items.add(new PricingItem(entry.getKey(), entry.getValue(), product.getUnitPrice()));
@@ -69,7 +69,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
         if (request == null || request.getItems() == null || request.getItems().isEmpty()) {
             throw invalid("Checkout items must not be empty");
         }
-        LinkedHashMap<String, Integer> quantities = new LinkedHashMap<String, Integer>();
+        LinkedHashMap<String, Integer> quantities = new LinkedHashMap<>();
         for (CheckoutItemRequest item : request.getItems()) {
             if (item == null || item.getProductCode() == null || item.getProductCode().trim().isEmpty()
                     || item.getQuantity() == null || item.getQuantity() < 0) {
@@ -85,7 +85,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
 
     /** 将商品列表按标准化业务编码建立索引。 */
     private Map<String, Product> indexProducts(List<Product> products) {
-        Map<String, Product> indexed = new HashMap<String, Product>();
+        Map<String, Product> indexed = new HashMap<>();
         if (products != null) {
             for (Product product : products) {
                 if (product != null && product.getCode() != null) {
@@ -120,7 +120,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
 
     /** 在内存中再次过滤有效时间，防止测试数据或并发边界影响报价。 */
     private List<Promotion> currentPromotions(List<Promotion> promotions, LocalDateTime now) {
-        List<Promotion> current = new ArrayList<Promotion>();
+        List<Promotion> current = new ArrayList<>();
         if (promotions == null) return current;
         for (Promotion promotion : promotions) {
             if (promotion != null && Boolean.TRUE.equals(promotion.getEnabled())
@@ -134,13 +134,13 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
 
     /** 将持久化促销转换为领域规则，并拒绝重复有效规则。 */
     private List<PricingRule> rules(List<Promotion> promotions, Map<String, Product> productsByCode) {
-        Map<Long, String> codesById = new HashMap<Long, String>();
+        Map<Long, String> codesById = new HashMap<>();
         for (Map.Entry<String, Product> entry : productsByCode.entrySet()) {
             codesById.put(entry.getValue().getId(), entry.getKey());
         }
-        Map<String, BigDecimal> rates = new HashMap<String, BigDecimal>();
+        Map<String, BigDecimal> rates = new HashMap<>();
         boolean thresholdSeen = false;
-        List<PricingRule> rules = new ArrayList<PricingRule>();
+        List<PricingRule> rules = new ArrayList<>();
         for (Promotion promotion : promotions) {
             if (promotion.getType() == PromotionType.PRODUCT_DISCOUNT) {
                 String code = codesById.get(promotion.getProductId());
@@ -163,7 +163,7 @@ public class PricingQuoteServiceImpl implements PricingQuoteService {
 
     /** 将纯计价结果补充商品快照信息，形成订单和试算共享的报价。 */
     private PricingQuote toQuote(PricingResult result, Map<String, Product> products) {
-        List<PricingQuote.Line> lines = new ArrayList<PricingQuote.Line>();
+        List<PricingQuote.Line> lines = new ArrayList<>();
         for (PricingResult.LineResult line : result.getLineResults()) {
             PricingItem item = line.getItem();
             Product product = products.get(item.getProductCode());

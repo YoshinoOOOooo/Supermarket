@@ -16,7 +16,7 @@ public final class ProductDiscountRule implements PricingRule {
     /** 创建商品折扣规则，并复制传入映射避免外部修改。 */
     public ProductDiscountRule(Map<String, BigDecimal> rates) {
         Objects.requireNonNull(rates, "rates");
-        this.rates = Collections.unmodifiableMap(new HashMap<String, BigDecimal>(rates));
+        this.rates = Collections.unmodifiableMap(new HashMap<>(rates));
     }
 
     /** 返回商品折扣的执行顺序。 */

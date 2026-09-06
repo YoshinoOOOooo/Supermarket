@@ -18,12 +18,7 @@ public final class PricingCalculator {
         Objects.requireNonNull(rules, "rules");
         PricingContext context = new PricingContext(items);
         List<PricingRule> orderedRules = new ArrayList<PricingRule>(rules);
-        Collections.sort(orderedRules, new Comparator<PricingRule>() {
-            @Override
-            public int compare(PricingRule left, PricingRule right) {
-                return Integer.compare(left.getOrder(), right.getOrder());
-            }
-        });
+        Collections.sort(orderedRules, Comparator.comparingInt(PricingRule::getOrder));
         for (PricingRule rule : orderedRules) {
             rule.apply(context);
         }

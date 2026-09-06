@@ -60,7 +60,7 @@ public class OrderServiceImpl implements OrderService {
         order.setUpdatedAt(now);
         orderMapper.insert(order);
 
-        List<OrderItem> snapshots = new ArrayList<OrderItem>();
+        List<OrderItem> snapshots = new ArrayList<>();
         for (PricingQuote.Line line : quote.getLines()) {
             OrderItem snapshot = snapshot(order.getId(), line);
             itemMapper.insert(snapshot);
@@ -98,7 +98,7 @@ public class OrderServiceImpl implements OrderService {
                 .eq(CustomerOrder::getId, order.getId()).eq(CustomerOrder::getStatus, OrderStatus.UNPAID));
         if (changed != 1) throw invalidState("Order state changed concurrently");
         itemMapper.delete(new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
-        List<OrderItem> replacement = new ArrayList<OrderItem>();
+        List<OrderItem> replacement = new ArrayList<>();
         for (PricingQuote.Line line : quote.getLines()) {
             OrderItem item = snapshot(order.getId(), line); itemMapper.insert(item); replacement.add(item);
         }
@@ -129,13 +129,13 @@ public class OrderServiceImpl implements OrderService {
     public IPage<OrderView> list(long page, long size) {
         if (page < 1 || size < 1 || size > 100)
             throw invalid("Page must be positive and size must be between 1 and 100");
-        IPage<CustomerOrder> result = orderMapper.selectPage(new Page<CustomerOrder>(page, size),
+        IPage<CustomerOrder> result = orderMapper.selectPage(new Page<>(page, size),
                 new LambdaQueryWrapper<CustomerOrder>().orderByDesc(CustomerOrder::getCreatedAt));
-        List<Long> orderIds = new ArrayList<Long>();
+        List<Long> orderIds = new ArrayList<>();
         for (CustomerOrder order : result.getRecords()) orderIds.add(order.getId());
         Map<Long, List<OrderItem>> grouped = snapshotsByOrderIds(orderIds);
         return result.convert(order -> view(order,
-                grouped.containsKey(order.getId()) ? grouped.get(order.getId()) : Collections.<OrderItem>emptyList()));
+                grouped.containsKey(order.getId()) ? grouped.get(order.getId()) : Collections.emptyList()));
     }
 
     /**
@@ -182,7 +182,7 @@ public class OrderServiceImpl implements OrderService {
 
     /** 一次查询整页订单明细并按订单主键分组，避免逐订单查询。 */
     private Map<Long, List<OrderItem>> snapshotsByOrderIds(List<Long> orderIds) {
-        Map<Long, List<OrderItem>> grouped = new LinkedHashMap<Long, List<OrderItem>>();
+        Map<Long, List<OrderItem>> grouped = new LinkedHashMap<>();
         if (orderIds.isEmpty()) return grouped;
         List<OrderItem> all = itemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
                 .in(OrderItem::getOrderId, orderIds).orderByAsc(OrderItem::getId));
@@ -214,7 +214,7 @@ public class OrderServiceImpl implements OrderService {
 
     /** 将订单实体和明细快照组装为对外订单视图。 */
     private OrderView view(CustomerOrder order, List<OrderItem> snapshots) {
-        List<OrderItemView> itemViews = new ArrayList<OrderItemView>();
+        List<OrderItemView> itemViews = new ArrayList<>();
         for (OrderItem item : snapshots) {
             itemViews.add(new OrderItemView(item.getProductCode(), item.getProductName(), item.getQuantity(),
                     item.getUnitPrice(), item.getOriginalAmount(), item.getDiscountAmount(), item.getPayableAmount()));
